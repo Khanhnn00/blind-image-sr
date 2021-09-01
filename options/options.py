@@ -1,87 +1,86 @@
-import logging
 import os
-import os.path as osp
+from collections import OrderedDict
+from datetime import datetime
+import json
 
-import yaml
-from utils.util import OrderedYaml
+import torch
+
+from utils import util
+
+def get_timestamp():
+    return datetime.now().strftime('%y%m%d-%H%M%S')
 
 
-Loader, Dumper = OrderedYaml()
+def parse(opt_path):
+    # remove comments starting with '//'
+    json_str = ''
+    with open(opt_path, 'r') as f:
+        for line in f:
+            line = line.split('//')[0] + '\n'
+            json_str += line
+    opt = json.loads(json_str, object_pairs_hook=OrderedDict)
 
+    opt['timestamp'] = get_timestamp()
+    scale = opt['scale']
+    rgb_range = opt['rgb_range']
 
-def parse(opt_path, is_train=True):
-    with open(opt_path, mode="r") as f:
-        opt = yaml.load(f, Loader=Loader)
     # export CUDA_VISIBLE_DEVICES
-    gpu_list = ",".join(str(x) for x in opt["gpu_ids"])
-    os.environ["CUDA_VISIBLE_DEVICES"] = gpu_list
-    print("export CUDA_VISIBLE_DEVICES=" + gpu_list)
-
-    opt["is_train"] = is_train
-    if opt["distortion"] == "sr":
-        scale = opt["scale"]
+    if torch.cuda.is_available():
+        gpu_list = ','.join(str(x) for x in opt['gpu_ids'])
+        os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
+        print('===> Export CUDA_VISIBLE_DEVICES = [' + gpu_list + ']')
+    else:
+        print('===> CPU mode is set (NOTE: GPU is recommended)')
 
     # datasets
-    for phase, dataset in opt["datasets"].items():
-        phase = phase.split("_")[0]
-        dataset["phase"] = phase
-        if opt["distortion"] == "sr":
-            dataset["scale"] = scale
-        is_lmdb = False
-        if dataset.get("dataroot_GT", None) is not None:
-            dataset["dataroot_GT"] = osp.expanduser(dataset["dataroot_GT"])
-            if dataset["dataroot_GT"].endswith("lmdb"):
-                is_lmdb = True
-        if dataset.get("dataroot_LQ", None) is not None:
-            dataset["dataroot_LQ"] = osp.expanduser(dataset["dataroot_LQ"])
-            if dataset["dataroot_LQ"].endswith("lmdb"):
-                is_lmdb = True
-        dataset["data_type"] = "lmdb" if is_lmdb else "img"
-        if dataset["mode"].endswith("mc"):  # for memcached
-            dataset["data_type"] = "mc"
-            dataset["mode"] = dataset["mode"].replace("_mc", "")
+    for phase, dataset in opt['datasets'].items():
+        phase = phase.split('_')[0]
+        dataset['phase'] = phase
+        dataset['scale'] = scale
+        dataset['rgb_range'] = rgb_range
+        
+    # for network initialize
+    opt['networks']['scale'] = opt['scale']
+    network_opt = opt['networks']
 
-    # path
-    for key, path in opt["path"].items():
-        if path and key in opt["path"] and key != "strict_load":
-            opt["path"][key] = osp.expanduser(path)
-    opt["path"]["root"] = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir))
-    if is_train:
-        experiments_root = osp.join(opt["path"]["root"], "experiments", opt["name"])
-        opt["path"]["experiments_root"] = experiments_root
-        opt["path"]["models"] = osp.join(experiments_root, "models")
-        opt["path"]["training_state"] = osp.join(experiments_root, "training_state")
-        opt["path"]["log"] = experiments_root
-        opt["path"]["val_images"] = osp.join(experiments_root, "val_images")
+    config_str = '%s_in%df%d_x%d'%(network_opt['which_model'].upper(), network_opt['in_channels'],
+                                                        network_opt['num_features'], opt['scale'])
+    exp_path = os.path.join(os.getcwd(), 'experiments', config_str)
 
-        # change some options for debug mode
-        if "debug" in opt["name"]:
-            opt["train"]["val_freq"] = 8
-            opt["logger"]["print_freq"] = 1
-            opt["logger"]["save_checkpoint_freq"] = 8
-    else:  # test
-        results_root = osp.join(opt["path"]["root"], "results", opt["name"])
-        opt["path"]["results_root"] = results_root
-        opt["path"]["log"] = results_root
+    if opt['is_train'] and opt['solver']['pretrain']:
+        if 'pretrained_path' not in list(opt['solver'].keys()): raise ValueError("[Error] The 'pretrained_path' does not declarate in *.json")
+        exp_path = os.path.dirname(os.path.dirname(opt['solver']['pretrained_path']))
+        if opt['solver']['pretrain'] == 'finetune': exp_path += '_finetune'
 
-    # network
-    if opt["distortion"] == "sr":
-        opt["network_G"]["scale"] = scale
+    exp_path = os.path.relpath(exp_path)
+
+    path_opt = OrderedDict()
+    path_opt['exp_root'] = exp_path
+    path_opt['epochs'] = os.path.join(exp_path, 'epochs')
+    path_opt['visual'] = os.path.join(exp_path, 'visual')
+    path_opt['records'] = os.path.join(exp_path, 'records')
+    opt['path'] = path_opt
+
+    if opt['is_train']:
+        # create folders
+        if opt['solver']['pretrain'] == 'resume':
+            opt = dict_to_nonedict(opt)
+        else:
+            util.mkdir_and_rename(opt['path']['exp_root'])  # rename old experiments if exists
+            util.mkdirs((path for key, path in opt['path'].items() if not key == 'exp_root'))
+            save(opt)
+            opt = dict_to_nonedict(opt)
+
+        print("===> Experimental DIR: [%s]"%exp_path)
 
     return opt
 
 
-def dict2str(opt, indent_l=1):
-    """dict to string for logger"""
-    msg = ""
-    for k, v in opt.items():
-        if isinstance(v, dict):
-            msg += " " * (indent_l * 2) + k + ":[\n"
-            msg += dict2str(v, indent_l + 1)
-            msg += " " * (indent_l * 2) + "]\n"
-        else:
-            msg += " " * (indent_l * 2) + k + ": " + str(v) + "\n"
-    return msg
+def save(opt):
+    dump_dir = opt['path']['exp_root']
+    dump_path = os.path.join(dump_dir, 'options.json')
+    with open(dump_path, 'w') as dump_file:
+        json.dump(opt, dump_file, indent=2)
 
 
 class NoneDict(dict):
@@ -100,23 +99,3 @@ def dict_to_nonedict(opt):
         return [dict_to_nonedict(sub_opt) for sub_opt in opt]
     else:
         return opt
-
-
-def check_resume(opt, resume_iter):
-    """Check resume states and pretrain_model paths"""
-    logger = logging.getLogger("base")
-    if opt["path"]["resume_state"]:
-        if (
-            opt["path"].get("pretrain_model_G", None) is not None
-            or opt["path"].get("pretrain_model_D", None) is not None
-        ):
-            logger.warning(
-                "pretrain_model path will be ignored \
-                    when resuming training."
-            )
-
-        opt["path"]["pretrain_model_G"] = osp.join(opt["path"]["models"], "{}_G.pth".format(resume_iter))
-        logger.info("Set [pretrain_model_G] to " + opt["path"]["pretrain_model_G"])
-        if "gan" in opt["model"]:
-            opt["path"]["pretrain_model_D"] = osp.join(opt["path"]["models"], "{}_D.pth".format(resume_iter))
-            logger.info("Set [pretrain_model_D] to " + opt["path"]["pretrain_model_D"])
