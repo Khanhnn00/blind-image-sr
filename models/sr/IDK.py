@@ -35,6 +35,7 @@ class IDK(nn.Module):
             output = self._forward_train(lr, zx, hr)
         else:
             output = self._forward_test(lr)
+        return output
 
 
     def _forward_train(self, lr, zx, hr):

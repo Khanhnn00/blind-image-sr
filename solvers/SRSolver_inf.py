@@ -1,4 +1,4 @@
-﻿import os
+import os
 from collections import OrderedDict
 import pandas as pd
 import scipy.misc as misc
@@ -19,16 +19,11 @@ class SRSolver(BaseSolver):
         self.opt = opt
         self.train_opt = opt['solver']
         self.LR = self.Tensor()
-        self.k = self.Tensor()
+        self.LR_x = self.Tensor()
         self.HR = self.Tensor()
-        self.HR_blur = self.Tensor()
         self.SR = None
 
-        self.records_SR = {'train_loss': [],
-                        'lr': []
-        }
-
-        self.records_netG = {'train_loss': [],
+        self.records = {'train_loss': [],
                         'lr': []
         }
         self.model = create_model(opt)
@@ -57,28 +52,14 @@ class SRSolver(BaseSolver):
             weight_decay = self.train_opt['weight_decay'] if self.train_opt['weight_decay'] else 0
             optim_type = self.train_opt['type'].upper()
             if optim_type == "ADAM":
-                self.optimizer1 = optim.Adam(self.model.parameters(),
-                                            lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
-            else:
-                raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
-
-            optim_type = self.train_opt['type'].upper()
-            if optim_type == "ADAM":
-                self.optimizer1 = optim.Adam(self.model.parameters(),
+                self.optimizer = optim.Adam(self.model.parameters(),
                                             lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
 
             # set lr_scheduler
             if self.train_opt['lr_scheme'].lower() == 'multisteplr':
-                self.scheduler1 = optim.lr_scheduler.MultiStepLR(self.optimizer1,
-                                                                self.train_opt['lr_steps'],
-                                                                self.train_opt['lr_gamma'])
-            else:
-                raise NotImplementedError('Only MultiStepLR scheme is supported!')
-
-            if self.train_opt['lr_scheme'].lower() == 'multisteplr':
-                self.scheduler2 = optim.lr_scheduler.MultiStepLR(self.optimizer2,
+                self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer,
                                                                 self.train_opt['lr_steps'],
                                                                 self.train_opt['lr_gamma'])
             else:
@@ -104,20 +85,18 @@ class SRSolver(BaseSolver):
 
         if need_HR and is_train:
             target = batch['HR']
-            blur = batch['HR_blur']
-            k = batch['k']
             self.HR.resize_(target.size()).copy_(target)
-            self.HR_blur.resize_(target.size()).copy_(blur)
-            self.k.resize_(target.size()).copy_(k)
+            if is_complex:
+                input_x = batch['LR_x']
+                self.LR_x.resize_(input_x.size()).copy_(input_x)
+                # print(self.LR_x)
         elif need_HR and not is_train:
             target = batch['HR']
             self.HR.resize_(target.size()).copy_(target)
 
-    def train_m1(self):
-        self.model.netG.eval()
-
-        self.model.SR.train()
-        self.optimizer1.zero_grad()
+    def train_step(self):
+        self.model.train()
+        self.optimizer.zero_grad()
 
         loss_batch = 0.0
         sub_batch_size = int(self.LR.size(0) / self.split_batch)
@@ -125,44 +104,9 @@ class SRSolver(BaseSolver):
             with torch.autograd.set_detect_anomaly(True):
                 loss_sbatch = 0.0
                 split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
-                split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
-                output = self.model(split_LR)
-                loss_sbatch = self.criterion_pix(output, split_HR_blur)
-
-                loss_sbatch /= self.split_batch
-                loss_sbatch.backward()
-
-                loss_batch += (loss_sbatch.item())
-
-        # for stable training
-        if loss_batch < self.skip_threshold * self.last_epoch_loss:
-            self.optimizer.step()
-            self.last_epoch_loss = loss_batch
-        else:
-            print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
-
-        self.SR.eval()
-        return loss_batch
-
-
-    def train_m1(self):
-        self.model.SR.eval()
-        self.model.netG.train()
-
-        self.optimizer2.zero_grad()
-
-        loss_batch = 0.0
-        sub_batch_size = int(self.LR.size(0) / self.split_batch)
-        for i in range(self.split_batch):
-            with torch.autograd.set_detect_anomaly(True):
-                loss_sbatch = 0.0
-                split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
-                split_k = self.k.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR = self.HR.narrow(0, i*sub_batch_size, sub_batch_size)
-                with torch.no_grad():
-                    HR_blur = self.model.SR(split_LR)
-                output = self.model.netG(split_HR, HR_blur)
-                loss_sbatch = self.criterion_pix(output, split_k)
+                output = self.model(split_LR)
+                loss_sbatch = self.criterion_pix(output, split_HR)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -176,7 +120,7 @@ class SRSolver(BaseSolver):
         else:
             print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
 
-        self.model.netG.eval()
+        self.model.eval()
         return loss_batch
 
 
@@ -315,42 +259,20 @@ class SRSolver(BaseSolver):
         
     
 
-    def save_checkpoint(self, epoch, is_best, module):
+    def save_checkpoint(self, epoch, is_best):
         """
         save checkpoint to experimental dir
         """
-        if module == 1:
-            filename = os.path.join(self.checkpoint_dir, 'SR_last_ckp.pth')
-            print('===> Saving last checkpoint to [%s] ...]'%filename)
-            ckp = {
-                'epoch': epoch,
-                'state_dict': self.model.SR.state_dict(),
-                'optimizer': self.optimizer1.state_dict(),
-                'best_pred': self.best_pred1,
-                'best_epoch': self.best_epoch1,
-                'records': self.records1
-            }
-        else:
-            filename = os.path.join(self.checkpoint_dir, 'netG_last_ckp.pth')
-            print('===> Saving last checkpoint to [%s] ...]'%filename)
-            ckp = {
-                'epoch': epoch,
-                'state_dict': self.model.netG.state_dict(),
-                'optimizer': self.optimizer2.state_dict(),
-                'best_pred': self.best_pred2,
-                'best_epoch': self.best_epoch2,
-                'records': self.records2
-            }
-        # else:
-        #     filename = os.path.join(self.checkpoint_dir, 'last_ckp.pth')
-        #     print('===> Saving last checkpoint to [%s] ...]'%filename)
-        #     ckp = {
-        #         'epoch': epoch,
-        #         'state_dict': self.model.netG.state_dict(),
-        #         'optimizer': self.optimizer2.state_dict(),
-        #         'best_pred': self.best_pred2,
-        #         'best_epoch': self.best_epoch2,
-        #         'records': self.records2
+        filename = os.path.join(self.checkpoint_dir, 'last_ckp.pth')
+        print('===> Saving last checkpoint to [%s] ...]'%filename)
+        ckp = {
+            'epoch': epoch,
+            'state_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'best_pred': self.best_pred,
+            'best_epoch': self.best_epoch,
+            'records': self.records
+        }
         torch.save(ckp, filename)
         if is_best:
             print('===> Saving best checkpoint to [%s] ...]' % filename.replace('last_ckp','best_ckp'))
@@ -423,18 +345,15 @@ class SRSolver(BaseSolver):
                         visual_images)
 
 
-    def get_current_learning_rate(self, module):
-        if module == 1:
-            return self.optimizer1.param_groups[0]['lr']
-        return self.optimizer2.param_groups[0]['lr']
+    def get_current_learning_rate(self):
+        return self.optimizer.param_groups[0]['lr']
 
-    def update_learning_rate1(self, epoch):
-        self.scheduler1.step(epoch)
 
-    def update_learning_rate2(self, epoch):
-        self.scheduler2.step(epoch)
+    def update_learning_rate(self, epoch):
+        self.scheduler.step(epoch)
 
-    def get_current_log_SR(self):
+
+    def get_current_log(self):
         log = OrderedDict()
         log['epoch'] = self.cur_epoch
         log['best_pred'] = self.best_pred
@@ -442,47 +361,25 @@ class SRSolver(BaseSolver):
         log['records'] = self.records
         return log
 
-    def set_current_log_SR(self, log):
+
+    def set_current_log(self, log):
         self.cur_epoch = log['epoch']
         self.best_pred = log['best_pred']
         self.best_epoch = log['best_epoch']
         self.records = log['records']
 
-    def get_current_log_netG(self):
-        log_netG = OrderedDict()
-        log_netG['epoch'] = self.cur_epoch_netG
-        log_netG['best_pred'] = self.best_pred_netG
-        log_netG['best_epoch'] = self.best_epoch_netG
-        log_netG['records'] = self.records_netG
-        return log_netG
 
-    def set_current_log_netG(self, log_netG):
-        self.cur_epoch_netG = log_netG['epoch']
-        self.best_pred_netG = log_netG['best_pred']
-        self.best_epoch_netG = log_netG['best_epoch']
-        self.records_netG = log_netG['records']
-
-    def save_current_log_SR(self):
+    def save_current_log(self):
         data = {}
         for i in self.records.keys():
-            data[i] = self.records_SR[i]
+            data[i] = self.records[i]
         data_frame = pd.DataFrame(
             data,
             index=range(1, self.cur_epoch + 1)
         )
-        data_frame.to_csv(os.path.join(self.records_dir, 'SR_train_records.csv'),
+        data_frame.to_csv(os.path.join(self.records_dir, 'train_records.csv'),
                           index_label='epoch')
 
-    def save_current_log_netG(self):
-        data = {}
-        for i in self.records.keys():
-            data[i] = self.records_netG[i]
-        data_frame = pd.DataFrame(
-            data,
-            index=range(1, self.cur_epoch + 1)
-        )
-        data_frame.to_csv(os.path.join(self.records_dir, 'netG_train_records.csv'),
-                          index_label='epoch')
 
     def print_network(self):
         """

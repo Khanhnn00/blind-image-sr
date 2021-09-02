@@ -29,22 +29,23 @@ class LRHRDataset(data.Dataset):
         assert self.paths_HR, '[Error] HR paths are empty.'
 
 
-
     def __getitem__(self, idx):
         hr, hr_path = self._load_file(idx)
         if self.train:
             hr = self._get_patch(hr)
-            k = common.random_anisotropic_gaussian_kernel()
+            k = common.random_anisotropic_gaussian_kernel(self.opt['kernel_size'])
+        hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])
         hr_blur = common.conv(hr, k, padding=self.opt['kernel_size']//2)
         hr_blur = common.np2Tensor([hr_blur], self.opt['rgb_range'])
-        hr_blur, hr_tensor = common.np2Tensor([hr_blur, hr], self.opt['rgb_range'])
-        lr = common.downsample(hr_blur)
-        return {'LR': lr, 'HR': hr_tensor,'HR_path': hr_path}
+        lr_tensor = common.downsample(hr_blur)
+        return {'LR': lr_tensor, 'k': k, 'HR_blur': hr_blur, 'HR': hr_tensor, 'HR_path': hr_path}
 
 
     def __len__(self):
-    
-        return len(self.paths_LR)
+        if self.train:
+            return len(self.paths_HR) * self.repeat
+        else:
+            return len(self.paths_LR)
 
 
     def _get_index(self, idx):
@@ -70,4 +71,4 @@ class LRHRDataset(data.Dataset):
             hr, LR_size, self.scale)
         hr = common.augment([hr])
 
-        return hr   
+        return hr                                                                                                                                                                                                                                                                                                                         

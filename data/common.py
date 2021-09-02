@@ -154,28 +154,31 @@ def np2Tensor(l, rgb_range):
 
     return [_np2Tensor(_l) for _l in l]
 
+def k2tensor(k):
+    np_transpose = np.ascontiguousarray(k.transpose((2, 0, 1)))
+    tensor = torch.from_numpy(np_transpose.copy()).float()
 
-def get_patch(img_in, img_tar, patch_size, scale):
-    ih, iw = img_in.shape[:2]
+    return tensor
+
+def conv(inp, k, padding):
+    return F.conv2d(inp, k, padding=padding)
+
+def downsample(img):
+    return F.interpolate(img, scale_factor=1/4, mode='bicubic')
+
+def get_patch(img_tar, patch_size, scale):
     oh, ow = img_tar.shape[:2]
+
 
     ip = patch_size
 
-    if ih == oh:
-        tp = ip
-        ix = random.randrange(0, iw - ip + 1)
-        iy = random.randrange(0, ih - ip + 1)
-        tx, ty = ix, iy
-    else:
-        tp = ip * scale
-        ix = random.randrange(0, iw - ip + 1)
-        iy = random.randrange(0, ih - ip + 1)
-        tx, ty = scale * ix, scale * iy
+    tp = ip * scale
+    tx = random.randrange(0, ow - tp + 1)
+    ty = random.randrange(0, oh - tp + 1)
 
-    img_in = img_in[iy:iy + ip, ix:ix + ip, :]
     img_tar = img_tar[ty:ty + tp, tx:tx + tp, :]
 
-    return img_in, img_tar
+    return img_tar
 
 def get_patch_lrx(img_in, img_inx, img_tar, patch_size, scale):
     ih, iw = img_in.shape[:2]
@@ -211,8 +214,6 @@ def add_noise(x, noise='.'):
         elif noise_type == 'S':
             noises = np.random.poisson(x * noise_value) / noise_value
             noises = noises - noises.mean(axis=0).mean(axis=0)
-        elif noise_type == 'BD':
-            s = np.random.normal(mu, sigma, 1000)
         x_noise = x.astype(np.int16) + noises.astype(np.int16)
         x_noise = x_noise.clip(0, 255).astype(np.uint8)
         return x_noise
@@ -258,7 +259,7 @@ def anisotropic_gaussian_kernel(width, inv_cov):
     return kernel
 
 
-def random_anisotropic_gaussian_kernel(width=15, sig_min=0.2, sig_max=4.0):
+def random_anisotropic_gaussian_kernel(width=16, sig_min=0.2, sig_max=4.0):
     # width : kernel size of anisotropic gaussian filter
     # sig_min : minimum of standard deviation
     # sig_max : maximum of standard deviation
@@ -268,7 +269,8 @@ def random_anisotropic_gaussian_kernel(width=15, sig_min=0.2, sig_max=4.0):
     inv_cov = inv_covariance_matrix(sig_x, sig_y, theta)
     kernel = anisotropic_gaussian_kernel(width, inv_cov)
     kernel = kernel.astype(np.float32)
-    return kernel
+    kernel = np.expand_dims(kernel, axis=0)
+    return torch.from_numpy(kernel)
 
 def modcrop(img_in, scale):
     img = np.copy(img_in)

@@ -7,8 +7,6 @@ class BaseSolver(object):
         self.scale = opt['scale']
         self.is_train = opt['is_train']
         self.use_chop = opt['use_chop']
-        self.self_ensemble = opt['self_ensemble']
-        self.use_cl = True if opt['use_cl'] else False
 
         # GPU verify
         self.use_gpu = torch.cuda.is_available()
@@ -31,9 +29,13 @@ class BaseSolver(object):
         self.save_ckp_step = opt['solver']['save_ckp_step']
         self.save_vis_step = opt['solver']['save_vis_step']
 
-        self.best_epoch = 0
-        self.cur_epoch = 1
-        self.best_pred = 0.0
+        self.best_epoch_SR = 0
+        self.cur_epoch_SR = 1
+        self.best_pred_SR = 0.0
+
+        self.best_epoch_netG = 0
+        self.cur_epoch_netG = 1
+        self.best_pred_netG = 0.0
 
     def feed_data(self, batch):
         pass
