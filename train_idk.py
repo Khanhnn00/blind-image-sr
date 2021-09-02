@@ -40,7 +40,7 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             psnr_list = []
             ssim_list = []
             for iter, batch in enumerate(val_loader):
-                solver.feed_data(batch)
+                solver.feed_data_val(batch, which=which)
                 iter_loss = solver.test()
                 val_loss_list.append(iter_loss)
 
@@ -155,10 +155,10 @@ def main():
         # Train model
         if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
             solver_log_SR['epoch'] = epoch
-            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt)
+            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
         else:
             solver_log_netG['epoch'] = epoch
-            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt)
+            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
 
 
 

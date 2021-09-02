@@ -98,7 +98,7 @@ class SRSolver(BaseSolver):
         init_weights(self.model, init_type)
 
 
-    def feed_data(self, batch, need_HR=True, is_train=True, is_complex=False):
+    def feed_data(self, batch, need_HR=True, is_train=True, which=1):
         input = batch['LR']
         self.LR.resize_(input.size()).copy_(input)
 
@@ -112,6 +112,23 @@ class SRSolver(BaseSolver):
         elif need_HR and not is_train:
             target = batch['HR']
             self.HR.resize_(target.size()).copy_(target)
+
+    def feed_data_val(self, batch, which=1):
+        if which ==1:
+            input = batch['LR']
+            self.LR.resize_(input.size()).copy_(input)
+
+            target = batch['HR_blur']
+            self.HR_blur.resize_(target.size()).copy_(target)
+        else:
+            target = batch['HR']
+            blur = batch['HR_blur']
+            k = batch['k']
+            self.HR.resize_(target.size()).copy_(target)
+            self.HR_blur.resize_(target.size()).copy_(blur)
+            self.k.resize_(target.size()).copy_(k)
+        
+        
 
     def train_m1(self):
         self.model.netG.eval()
@@ -180,24 +197,32 @@ class SRSolver(BaseSolver):
         return loss_batch
 
 
-    def test(self):
-        self.model.eval()
-        with torch.no_grad():
-            forward_func = self._overlap_crop_forward if self.use_chop else self.model.forward
-            if self.self_ensemble and not self.is_train:
-                SR = self._forward_x8(self.LR, forward_func)
-            else:
-                SR = forward_func(self.LR, n_GPUs=2)
+    def test(self, which):
+        if which ==1:
+            self.model.SR.eval()
+            with torch.no_grad():
+                forward_func = self._overlap_crop_forward if self.use_chop else self.model.forward
+                if self.self_ensemble and not self.is_train:
+                    SR = self._forward_x8(self.LR, forward_func)
+                else:
+                    SR = forward_func(self.LR, n_GPUs=2)
 
-            if isinstance(SR, list):
-                self.SR = SR[-1]
-            else:
                 self.SR = SR
 
-        self.model.train()
-        if self.is_train:
-            loss_pix = self.criterion_pix(self.SR, self.HR)
-            return loss_pix.item()
+            self.model.SR.train()
+            if self.is_train:
+                loss_pix = self.criterion_pix(self.SR, self.HR_blur)
+                return loss_pix.item()
+        else:
+            self.model.netG.eval()
+            with torch.no_grad():
+                pred_k = self.model.netG(self.HR, self.HR_blur)
+                self.SR = pred_k
+            self.model.netG.train()
+            if self.is_train:
+                loss_pix = self.criterion_pix(self.SR, self.k)
+                return loss_pix.item()
+
             
 
     def _forward_x8(self, x, forward_function):
@@ -279,10 +304,7 @@ class SRSolver(BaseSolver):
                 if bic is not None:
                     bic_batch = torch.cat(bic_list[i:(i + n_GPUs)], dim=0)
 
-                if self.opt['networks']['which_model'] == "RANDOM":
-                    sr_batch_temp = self.model(lr_batch, is_test=True)
-                else:
-                    sr_batch_temp = self.model(lr_batch)
+                sr_batch_temp = self.model.SR(lr_batch)
 
                 if isinstance(sr_batch_temp, list):
                     sr_batch = sr_batch_temp[-1]

@@ -40,10 +40,13 @@ class BaseSolver(object):
     def feed_data(self, batch):
         pass
 
+    def feed_data_val(self, batch):
+        pass
+
     def train_step(self):
         pass
 
-    def test(self):
+    def test(self, which):
         pass
 
     def _forward_x8(self, x, forward_function):
@@ -78,6 +81,7 @@ class BaseSolver(object):
 
     def save_current_log(self):
         pass
+
 
     def print_network(self):
         pass

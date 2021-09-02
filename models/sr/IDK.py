@@ -16,13 +16,13 @@ class IDK(nn.Module):
 
         # define network and load pretrained models
         model = []
-        self.DIP = ImageDIP(opt["DIP"]).to(self.device)
-        self.SR = edsr.EDSR(opt["SR"]["in_channels"], opt["SR"]["out_channels"], opt["SR"]["num_features"], opt["SR"]["num_blocks"]\
-            , opt["SR"]["res_scale"], opt["SR"]["upscale_factor"]).to(self.device)
-        self.netG = KernelExtractor(opt["KernelExtractor"]).to(self.device)
+        self.DIP = ImageDIP(opt["network"]["DIP"]).to(self.device)
+        self.SR = edsr.EDSR(opt["network"]["SR"]["in_channels"], opt["network"]["SR"]["out_channels"], opt["network"]["SR"]["num_features"], opt["SR"]["num_blocks"]\
+            , opt["network"]["SR"]["res_scale"], opt["network"]["SR"]["upscale_factor"]).to(self.device)
+        self.netG = KernelExtractor(opt["network"]["KernelExtractor"]).to(self.device)
         self.is_train = opt["is_train"]
 
-        self.scale = opt["SR"]["upscale_factor"]
+        self.scale = opt["network"]["SR"]["upscale_factor"]
         model.append(self.DIP)
         model.append(self.SR)
         model.append(self.netG)
@@ -32,13 +32,13 @@ class IDK(nn.Module):
 
     def forward(self, lr=None, zx=None, hr=None):
         if self.is_train:
-            output = self._forward_train(lr, zx, hr)
+            output = self._forward_train(lr, hr)
         else:
-            output = self._forward_test(lr)
+            output = self._forward_test(lr, zx)
         return output
 
 
-    def _forward_train(self, lr, zx, hr):
+    def _forward_train(self, lr, hr):
         assert lr is not None
         assert hr is not None
         hr_b_pred = self.SR(lr)
