@@ -10,7 +10,7 @@ from solvers import create_solver
 from data import create_dataloader
 from data import create_dataset
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,2"
 
 def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log, loader_list, opt, which):
     train_loss_list = []
@@ -41,12 +41,15 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             ssim_list = []
             for iter, batch in enumerate(val_loader):
                 solver.feed_data_val(batch, which=which)
-                iter_loss = solver.test()
+                iter_loss = solver.test(which=which)
                 val_loss_list.append(iter_loss)
 
                 # calculate evaluation metrics
-                visuals = solver.get_current_visual()
-                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
+                visuals = solver.get_current_visual(which=which)
+                if which ==1:
+                    psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
+                else:
+                    psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=False)
                 psnr_list.append(psnr)
                 ssim_list.append(ssim)
 
@@ -100,7 +103,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train Super Resolution Models')
     #	parser.add_argument('-opt', type=str, required=True, help='Path to options JSON file.')
     #	opt = option.parse(parser.parse_args().opt)
-    opt = option.parse('options/train/train_EDSR_v3.json')
+    opt = option.parse('options/train/train_IDK.json')
 
 
     # random seed
@@ -130,7 +133,7 @@ def main():
 
     solver = create_solver(opt)
     scale = opt['scale']
-    model_name = opt['networks']['which_model'].upper()
+    model_name = opt['network']['which_model'].upper()
     print(model_name)
 
     print('===> Start Train')
@@ -145,18 +148,22 @@ def main():
     print("Method: %s || Scale: %d || Epoch Range: (%d ~ %d)"%(model_name, scale, start_epoch, NUM_EPOCH))
 
     for epoch in range(start_epoch, NUM_EPOCH + 1):
-        print('\n===> Training Epoch: [%d/%d]...  Learning Rate: %f'%(epoch,
+        if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
+            print('\n===> Training Epoch: [%d/%d] SR module ...  Learning Rate: %f'%(epoch,
                                                                         NUM_EPOCH,
-                                                                        solver.get_current_learning_rate()))
+                                                                        solver.get_current_learning_rate(1)))
 
         # Initialization
         
 
         # Train model
-        if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
+        
             solver_log_SR['epoch'] = epoch
             train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
         else:
+            print('\n===> Training Epoch: [%d/%d] netG module ...  Learning Rate: %f'%(epoch,
+                                                                        NUM_EPOCH,
+                                                                        solver.get_current_learning_rate(2)))
             solver_log_netG['epoch'] = epoch
             train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
 

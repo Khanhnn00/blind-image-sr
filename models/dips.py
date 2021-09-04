@@ -62,7 +62,7 @@ class ImageDIP(nn.Module):
 
     def __init__(self, opt):
         super(ImageDIP, self).__init__()
-
+        print(opt)
         input_nc = opt["input_nc"]
         output_nc = opt["output_nc"]
 

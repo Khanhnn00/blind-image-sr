@@ -1,0 +1,853 @@
+IDK(
+  (DIP): ImageDIP(
+    (model): Sequential(
+      (1): Concat(
+        (0): Sequential(
+          (1): Sequential(
+            (0): Conv2d(8, 16, kernel_size=(1, 1), stride=(1, 1))
+          )
+          (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (3): LeakyReLU(negative_slope=0.2, inplace=True)
+        )
+        (1): Sequential(
+          (1): Sequential(
+            (0): Conv2d(8, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+          )
+          (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (3): LeakyReLU(negative_slope=0.2, inplace=True)
+          (4): Sequential(
+            (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+          (5): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+          (6): LeakyReLU(negative_slope=0.2, inplace=True)
+          (7): Sequential(
+            (1): Concat(
+              (0): Sequential(
+                (1): Sequential(
+                  (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                )
+                (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                (3): LeakyReLU(negative_slope=0.2, inplace=True)
+              )
+              (1): Sequential(
+                (1): Sequential(
+                  (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                )
+                (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                (4): Sequential(
+                  (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                )
+                (5): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                (6): LeakyReLU(negative_slope=0.2, inplace=True)
+                (7): Sequential(
+                  (1): Concat(
+                    (0): Sequential(
+                      (1): Sequential(
+                        (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                      )
+                      (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                      (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                    )
+                    (1): Sequential(
+                      (1): Sequential(
+                        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                      )
+                      (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                      (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                      (4): NONLocalBlock2D(
+                        (g): Sequential(
+                          (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                          (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                        )
+                        (W): Sequential(
+                          (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                          (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        )
+                        (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                        (phi): Sequential(
+                          (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                          (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                        )
+                      )
+                      (5): Sequential(
+                        (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                      )
+                      (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                      (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                      (8): Sequential(
+                        (1): Concat(
+                          (0): Sequential(
+                            (1): Sequential(
+                              (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                            )
+                            (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                            (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                          )
+                          (1): Sequential(
+                            (1): Sequential(
+                              (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                            )
+                            (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                            (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                            (4): NONLocalBlock2D(
+                              (g): Sequential(
+                                (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                              )
+                              (W): Sequential(
+                                (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                                (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              )
+                              (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                              (phi): Sequential(
+                                (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                              )
+                            )
+                            (5): Sequential(
+                              (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                            )
+                            (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                            (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                            (8): Sequential(
+                              (1): Concat(
+                                (0): Sequential(
+                                  (1): Sequential(
+                                    (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                                  )
+                                  (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                  (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                                )
+                                (1): Sequential(
+                                  (1): Sequential(
+                                    (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                                  )
+                                  (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                  (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                                  (4): NONLocalBlock2D(
+                                    (g): Sequential(
+                                      (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                      (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                    )
+                                    (W): Sequential(
+                                      (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                                      (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                    )
+                                    (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                    (phi): Sequential(
+                                      (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                      (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                    )
+                                  )
+                                  (5): Sequential(
+                                    (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                                  )
+                                  (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                  (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                                  (8): Upsample(scale_factor=2.0, mode=bilinear)
+                                )
+                              )
+                              (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (3): Sequential(
+                                (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                              )
+                              (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                              (6): Sequential(
+                                (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                              )
+                              (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                            )
+                            (9): Upsample(scale_factor=2.0, mode=bilinear)
+                          )
+                        )
+                        (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (3): Sequential(
+                          (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                        )
+                        (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                        (6): Sequential(
+                          (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                        )
+                        (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                      )
+                      (9): Upsample(scale_factor=2.0, mode=bilinear)
+                    )
+                  )
+                  (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (3): Sequential(
+                    (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                  )
+                  (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                  (6): Sequential(
+                    (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                  )
+                  (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                )
+                (8): Upsample(scale_factor=2.0, mode=bilinear)
+              )
+            )
+            (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (3): Sequential(
+              (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            )
+            (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (5): LeakyReLU(negative_slope=0.2, inplace=True)
+            (6): Sequential(
+              (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+            )
+            (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (8): LeakyReLU(negative_slope=0.2, inplace=True)
+          )
+          (8): Upsample(scale_factor=2.0, mode=bilinear)
+        )
+      )
+      (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (3): Sequential(
+        (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+      )
+      (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (5): LeakyReLU(negative_slope=0.2, inplace=True)
+      (6): Sequential(
+        (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+      )
+      (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (8): LeakyReLU(negative_slope=0.2, inplace=True)
+      (9): Sequential(
+        (0): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))
+      )
+      (10): Sigmoid()
+    )
+  )
+  (SR): EDSR(
+    (sub_mean): MeanShift(3, 3, kernel_size=(1, 1), stride=(1, 1))
+    (add_mean): MeanShift(3, 3, kernel_size=(1, 1), stride=(1, 1))
+    (head): Sequential(
+      (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    )
+    (body): Sequential(
+      (0): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (1): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (2): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (3): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (4): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (5): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (6): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (7): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (8): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (9): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (10): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (11): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (12): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (13): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (14): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (15): ResBlock(
+        (body): Sequential(
+          (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): ReLU(inplace=True)
+          (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+      )
+      (16): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    )
+    (tail): Sequential(
+      (0): Upsampler(
+        (0): Conv2d(64, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        (1): PixelShuffle(upscale_factor=2)
+        (2): Conv2d(64, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        (3): PixelShuffle(upscale_factor=2)
+      )
+      (1): Conv2d(64, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+    )
+  )
+  (netG): KernelExtractor(
+    (model): Sequential(
+      (0): ReflectionPad2d((3, 3, 3, 3))
+      (1): Conv2d(128, 64, kernel_size=(7, 7), stride=(1, 1), bias=False)
+      (2): Identity()
+      (3): ReLU(inplace=True)
+      (4): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (5): Identity()
+      (6): ReLU(inplace=True)
+      (7): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (8): Identity()
+      (9): ReLU(inplace=True)
+      (10): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (11): Identity()
+      (12): ReLU(inplace=True)
+      (13): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (14): Identity()
+      (15): ReLU(inplace=True)
+      (16): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+      (17): Identity()
+      (18): ReLU(inplace=True)
+      (19): ResnetBlock(
+        (conv_block): Sequential(
+          (0): ReflectionPad2d((1, 1, 1, 1))
+          (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (2): Identity()
+          (3): ReLU(inplace=True)
+          (4): ReflectionPad2d((1, 1, 1, 1))
+          (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (6): Identity()
+        )
+      )
+      (20): ResnetBlock(
+        (conv_block): Sequential(
+          (0): ReflectionPad2d((1, 1, 1, 1))
+          (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (2): Identity()
+          (3): ReLU(inplace=True)
+          (4): ReflectionPad2d((1, 1, 1, 1))
+          (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (6): Identity()
+        )
+      )
+      (21): ResnetBlock(
+        (conv_block): Sequential(
+          (0): ReflectionPad2d((1, 1, 1, 1))
+          (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (2): Identity()
+          (3): ReLU(inplace=True)
+          (4): ReflectionPad2d((1, 1, 1, 1))
+          (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (6): Identity()
+        )
+      )
+      (22): ResnetBlock(
+        (conv_block): Sequential(
+          (0): ReflectionPad2d((1, 1, 1, 1))
+          (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (2): Identity()
+          (3): ReLU(inplace=True)
+          (4): ReflectionPad2d((1, 1, 1, 1))
+          (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+          (6): Identity()
+        )
+      )
+    )
+  )
+  (model): Sequential(
+    (0): ImageDIP(
+      (model): Sequential(
+        (1): Concat(
+          (0): Sequential(
+            (1): Sequential(
+              (0): Conv2d(8, 16, kernel_size=(1, 1), stride=(1, 1))
+            )
+            (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (3): LeakyReLU(negative_slope=0.2, inplace=True)
+          )
+          (1): Sequential(
+            (1): Sequential(
+              (0): Conv2d(8, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+            )
+            (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (3): LeakyReLU(negative_slope=0.2, inplace=True)
+            (4): Sequential(
+              (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            )
+            (5): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+            (6): LeakyReLU(negative_slope=0.2, inplace=True)
+            (7): Sequential(
+              (1): Concat(
+                (0): Sequential(
+                  (1): Sequential(
+                    (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                  )
+                  (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                )
+                (1): Sequential(
+                  (1): Sequential(
+                    (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                  )
+                  (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                  (4): Sequential(
+                    (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                  )
+                  (5): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                  (6): LeakyReLU(negative_slope=0.2, inplace=True)
+                  (7): Sequential(
+                    (1): Concat(
+                      (0): Sequential(
+                        (1): Sequential(
+                          (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                        )
+                        (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                      )
+                      (1): Sequential(
+                        (1): Sequential(
+                          (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                        )
+                        (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                        (4): NONLocalBlock2D(
+                          (g): Sequential(
+                            (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                            (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                          )
+                          (W): Sequential(
+                            (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                            (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                          )
+                          (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                          (phi): Sequential(
+                            (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                            (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                          )
+                        )
+                        (5): Sequential(
+                          (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                        )
+                        (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                        (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                        (8): Sequential(
+                          (1): Concat(
+                            (0): Sequential(
+                              (1): Sequential(
+                                (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                              )
+                              (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                            )
+                            (1): Sequential(
+                              (1): Sequential(
+                                (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                              )
+                              (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                              (4): NONLocalBlock2D(
+                                (g): Sequential(
+                                  (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                  (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                )
+                                (W): Sequential(
+                                  (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                                  (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                )
+                                (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                (phi): Sequential(
+                                  (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                  (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                )
+                              )
+                              (5): Sequential(
+                                (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                              )
+                              (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                              (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                              (8): Sequential(
+                                (1): Concat(
+                                  (0): Sequential(
+                                    (1): Sequential(
+                                      (0): Conv2d(128, 16, kernel_size=(1, 1), stride=(1, 1))
+                                    )
+                                    (2): BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                    (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                                  )
+                                  (1): Sequential(
+                                    (1): Sequential(
+                                      (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1))
+                                    )
+                                    (2): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                    (3): LeakyReLU(negative_slope=0.2, inplace=True)
+                                    (4): NONLocalBlock2D(
+                                      (g): Sequential(
+                                        (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                        (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                      )
+                                      (W): Sequential(
+                                        (0): Conv2d(64, 128, kernel_size=(1, 1), stride=(1, 1))
+                                        (1): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                      )
+                                      (theta): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                      (phi): Sequential(
+                                        (0): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1))
+                                        (1): MaxPool2d(kernel_size=(2, 2), stride=(2, 2), padding=0, dilation=1, ceil_mode=False)
+                                      )
+                                    )
+                                    (5): Sequential(
+                                      (0): Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                                    )
+                                    (6): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                    (7): LeakyReLU(negative_slope=0.2, inplace=True)
+                                    (8): Upsample(scale_factor=2.0, mode=bilinear)
+                                  )
+                                )
+                                (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                (3): Sequential(
+                                  (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                                )
+                                (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                                (6): Sequential(
+                                  (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                                )
+                                (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                                (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                              )
+                              (9): Upsample(scale_factor=2.0, mode=bilinear)
+                            )
+                          )
+                          (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                          (3): Sequential(
+                            (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                          )
+                          (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                          (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                          (6): Sequential(
+                            (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                          )
+                          (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                          (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                        )
+                        (9): Upsample(scale_factor=2.0, mode=bilinear)
+                      )
+                    )
+                    (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                    (3): Sequential(
+                      (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                    )
+                    (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                    (5): LeakyReLU(negative_slope=0.2, inplace=True)
+                    (6): Sequential(
+                      (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+                    )
+                    (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+                    (8): LeakyReLU(negative_slope=0.2, inplace=True)
+                  )
+                  (8): Upsample(scale_factor=2.0, mode=bilinear)
+                )
+              )
+              (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (3): Sequential(
+                (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+              )
+              (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (5): LeakyReLU(negative_slope=0.2, inplace=True)
+              (6): Sequential(
+                (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+              )
+              (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+              (8): LeakyReLU(negative_slope=0.2, inplace=True)
+            )
+            (8): Upsample(scale_factor=2.0, mode=bilinear)
+          )
+        )
+        (2): BatchNorm2d(144, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (3): Sequential(
+          (0): Conv2d(144, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        )
+        (4): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (5): LeakyReLU(negative_slope=0.2, inplace=True)
+        (6): Sequential(
+          (0): Conv2d(128, 128, kernel_size=(1, 1), stride=(1, 1))
+        )
+        (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (8): LeakyReLU(negative_slope=0.2, inplace=True)
+        (9): Sequential(
+          (0): Conv2d(128, 3, kernel_size=(1, 1), stride=(1, 1))
+        )
+        (10): Sigmoid()
+      )
+    )
+    (1): EDSR(
+      (sub_mean): MeanShift(3, 3, kernel_size=(1, 1), stride=(1, 1))
+      (add_mean): MeanShift(3, 3, kernel_size=(1, 1), stride=(1, 1))
+      (head): Sequential(
+        (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+      )
+      (body): Sequential(
+        (0): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (1): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (2): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (3): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (4): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (5): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (6): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (7): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (8): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (9): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (10): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (11): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (12): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (13): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (14): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (15): ResBlock(
+          (body): Sequential(
+            (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+            (1): ReLU(inplace=True)
+            (2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          )
+        )
+        (16): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+      )
+      (tail): Sequential(
+        (0): Upsampler(
+          (0): Conv2d(64, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (1): PixelShuffle(upscale_factor=2)
+          (2): Conv2d(64, 256, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (3): PixelShuffle(upscale_factor=2)
+        )
+        (1): Conv2d(64, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+      )
+    )
+    (2): KernelExtractor(
+      (model): Sequential(
+        (0): ReflectionPad2d((3, 3, 3, 3))
+        (1): Conv2d(128, 64, kernel_size=(7, 7), stride=(1, 1), bias=False)
+        (2): Identity()
+        (3): ReLU(inplace=True)
+        (4): Conv2d(64, 128, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (5): Identity()
+        (6): ReLU(inplace=True)
+        (7): Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (8): Identity()
+        (9): ReLU(inplace=True)
+        (10): Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (11): Identity()
+        (12): ReLU(inplace=True)
+        (13): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (14): Identity()
+        (15): ReLU(inplace=True)
+        (16): Conv2d(512, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
+        (17): Identity()
+        (18): ReLU(inplace=True)
+        (19): ResnetBlock(
+          (conv_block): Sequential(
+            (0): ReflectionPad2d((1, 1, 1, 1))
+            (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (2): Identity()
+            (3): ReLU(inplace=True)
+            (4): ReflectionPad2d((1, 1, 1, 1))
+            (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (6): Identity()
+          )
+        )
+        (20): ResnetBlock(
+          (conv_block): Sequential(
+            (0): ReflectionPad2d((1, 1, 1, 1))
+            (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (2): Identity()
+            (3): ReLU(inplace=True)
+            (4): ReflectionPad2d((1, 1, 1, 1))
+            (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (6): Identity()
+          )
+        )
+        (21): ResnetBlock(
+          (conv_block): Sequential(
+            (0): ReflectionPad2d((1, 1, 1, 1))
+            (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (2): Identity()
+            (3): ReLU(inplace=True)
+            (4): ReflectionPad2d((1, 1, 1, 1))
+            (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (6): Identity()
+          )
+        )
+        (22): ResnetBlock(
+          (conv_block): Sequential(
+            (0): ReflectionPad2d((1, 1, 1, 1))
+            (1): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (2): Identity()
+            (3): ReLU(inplace=True)
+            (4): ReflectionPad2d((1, 1, 1, 1))
+            (5): Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), bias=False)
+            (6): Identity()
+          )
+        )
+      )
+    )
+  )
+)
+Network structure: [DataParallel - IDK], with parameters: [29,426,030]

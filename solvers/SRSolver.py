@@ -37,9 +37,6 @@ class SRSolver(BaseSolver):
             self.model.train()
 
             # set cl_loss
-            if self.use_cl:
-                self.cl_weights = self.opt['solver']['cl_weights']
-                assert self.cl_weights, "[Error] 'cl_weights' is not be declared when 'use_cl' is true"
 
             # set loss
             loss_type = self.train_opt['loss_type']
@@ -64,7 +61,7 @@ class SRSolver(BaseSolver):
 
             optim_type = self.train_opt['type'].upper()
             if optim_type == "ADAM":
-                self.optimizer1 = optim.Adam(self.model.parameters(),
+                self.optimizer2 = optim.Adam(self.model.parameters(),
                                             lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
@@ -87,11 +84,12 @@ class SRSolver(BaseSolver):
         self.load()
         self.print_network()
 
-        print('===> Solver Initialized : [%s] || Use CL : [%s] || Use GPU : [%s]'%(self.__class__.__name__,
-                                                                                       self.use_cl, self.use_gpu))
+        print('===> Solver Initialized : [%s]  || Use GPU : [%s]'%(self.__class__.__name__, self.use_gpu))
         if self.is_train:
-            print("optimizer: ", self.optimizer)
-            print("lr_scheduler milestones: %s   gamma: %f"%(self.scheduler.milestones, self.scheduler.gamma))
+            print("optimizer1: ", self.optimizer1)
+            print("optimizer2: ", self.optimizer2)
+            print("lr_scheduler1 milestones: %s   gamma: %f"%(self.scheduler1.milestones, self.scheduler1.gamma))
+            print("lr_scheduler2 milestones: %s   gamma: %f"%(self.scheduler2.milestones, self.scheduler2.gamma))
 
     def _net_init(self, init_type='kaiming'):
         print('==> Initializing the network using [%s]'%init_type)
@@ -107,8 +105,8 @@ class SRSolver(BaseSolver):
             blur = batch['HR_blur']
             k = batch['k']
             self.HR.resize_(target.size()).copy_(target)
-            self.HR_blur.resize_(target.size()).copy_(blur)
-            self.k.resize_(target.size()).copy_(k)
+            self.HR_blur.resize_(blur.size()).copy_(blur)
+            self.k.resize_(k.size()).copy_(k)
         elif need_HR and not is_train:
             target = batch['HR']
             self.HR.resize_(target.size()).copy_(target)
@@ -131,9 +129,9 @@ class SRSolver(BaseSolver):
         
 
     def train_m1(self):
-        self.model.netG.eval()
+        self.model.module.netG.eval()
 
-        self.model.SR.train()
+        self.model.module.SR.train()
         self.optimizer1.zero_grad()
 
         loss_batch = 0.0
@@ -143,7 +141,7 @@ class SRSolver(BaseSolver):
                 loss_sbatch = 0.0
                 split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
-                output = self.model(split_LR)
+                output = self.model.module.SR(split_LR)
                 loss_sbatch = self.criterion_pix(output, split_HR_blur)
 
                 loss_sbatch /= self.split_batch
@@ -153,18 +151,18 @@ class SRSolver(BaseSolver):
 
         # for stable training
         if loss_batch < self.skip_threshold * self.last_epoch_loss:
-            self.optimizer.step()
+            self.optimizer1.step()
             self.last_epoch_loss = loss_batch
         else:
             print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
 
-        self.SR.eval()
+        self.model.module.SR.eval()
         return loss_batch
 
 
-    def train_m1(self):
-        self.model.SR.eval()
-        self.model.netG.train()
+    def train_m2(self):
+        self.model.module.SR.eval()
+        self.model.module.netG.train()
 
         self.optimizer2.zero_grad()
 
@@ -177,8 +175,8 @@ class SRSolver(BaseSolver):
                 split_k = self.k.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR = self.HR.narrow(0, i*sub_batch_size, sub_batch_size)
                 with torch.no_grad():
-                    HR_blur = self.model.SR(split_LR)
-                output = self.model.netG(split_HR, HR_blur)
+                    HR_blur = self.model.module.SR(split_LR)
+                output = self.model.module.netG(split_HR, HR_blur)
                 loss_sbatch = self.criterion_pix(output, split_k)
 
                 loss_sbatch /= self.split_batch
@@ -188,37 +186,34 @@ class SRSolver(BaseSolver):
 
         # for stable training
         if loss_batch < self.skip_threshold * self.last_epoch_loss:
-            self.optimizer.step()
+            self.optimizer2.step()
             self.last_epoch_loss = loss_batch
         else:
             print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
 
-        self.model.netG.eval()
+        self.model.module.netG.eval()
         return loss_batch
 
 
     def test(self, which):
         if which ==1:
-            self.model.SR.eval()
+            self.model.module.SR.eval()
             with torch.no_grad():
                 forward_func = self._overlap_crop_forward if self.use_chop else self.model.forward
-                if self.self_ensemble and not self.is_train:
-                    SR = self._forward_x8(self.LR, forward_func)
-                else:
-                    SR = forward_func(self.LR, n_GPUs=2)
+                SR = forward_func(self.LR, n_GPUs=2)
 
                 self.SR = SR
 
-            self.model.SR.train()
+            self.model.module.SR.train()
             if self.is_train:
                 loss_pix = self.criterion_pix(self.SR, self.HR_blur)
                 return loss_pix.item()
         else:
-            self.model.netG.eval()
+            self.model.module.netG.eval()
             with torch.no_grad():
-                pred_k = self.model.netG(self.HR, self.HR_blur)
+                pred_k = self.model.module.netG(self.HR, self.HR_blur)
                 self.SR = pred_k
-            self.model.netG.train()
+            self.model.module.netG.train()
             if self.is_train:
                 loss_pix = self.criterion_pix(self.SR, self.k)
                 return loss_pix.item()
@@ -304,7 +299,7 @@ class SRSolver(BaseSolver):
                 if bic is not None:
                     bic_batch = torch.cat(bic_list[i:(i + n_GPUs)], dim=0)
 
-                sr_batch_temp = self.model.SR(lr_batch)
+                sr_batch_temp = self.model.module.SR(lr_batch)
 
                 if isinstance(sr_batch_temp, list):
                     sr_batch = sr_batch_temp[-1]
@@ -346,7 +341,7 @@ class SRSolver(BaseSolver):
             print('===> Saving last checkpoint to [%s] ...]'%filename)
             ckp = {
                 'epoch': epoch,
-                'state_dict': self.model.SR.state_dict(),
+                'state_dict': self.model.module.SR.state_dict(),
                 'optimizer': self.optimizer1.state_dict(),
                 'best_pred': self.best_pred1,
                 'best_epoch': self.best_epoch1,
@@ -357,7 +352,7 @@ class SRSolver(BaseSolver):
             print('===> Saving last checkpoint to [%s] ...]'%filename)
             ckp = {
                 'epoch': epoch,
-                'state_dict': self.model.netG.state_dict(),
+                'state_dict': self.model.module.netG.state_dict(),
                 'optimizer': self.optimizer2.state_dict(),
                 'best_pred': self.best_pred2,
                 'best_epoch': self.best_epoch2,
@@ -368,7 +363,7 @@ class SRSolver(BaseSolver):
         #     print('===> Saving last checkpoint to [%s] ...]'%filename)
         #     ckp = {
         #         'epoch': epoch,
-        #         'state_dict': self.model.netG.state_dict(),
+        #         'state_dict': self.model.module.netG.state_dict(),
         #         'optimizer': self.optimizer2.state_dict(),
         #         'best_pred': self.best_pred2,
         #         'best_epoch': self.best_epoch2,
@@ -413,20 +408,34 @@ class SRSolver(BaseSolver):
                 load_func(checkpoint)
 
 
-    def get_current_visual(self, need_np=True, need_HR=True):
+    def get_current_visual(self, need_np=True, need_HR=True, which=1):
         """
         return LR SR (HR) images
         """
         out_dict = OrderedDict()
-        out_dict['LR'] = self.LR.data[0].float().cpu()
-        out_dict['SR'] = self.SR.data[0].float().cpu()
-        if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
-                                                                        self.opt['rgb_range'])
-        if need_HR:
-            out_dict['HR'] = self.HR.data[0].float().cpu()
-            if need_np: out_dict['HR'] = util.Tensor2np([out_dict['HR']],
-                                                           self.opt['rgb_range'])[0]
-        return out_dict
+        if which ==1:
+            out_dict['LR'] = self.LR.data[0].float().cpu()
+            out_dict['SR'] = self.SR.data[0].float().cpu()
+
+            
+            if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
+                                                                            self.opt['rgb_range'])
+            if need_HR:
+                out_dict['HR'] = self.HR_blur.data[0].float().cpu()
+                if need_np: out_dict['HR'] = util.Tensor2np([out_dict['HR']],
+                                                            self.opt['rgb_range'])[0]
+            return out_dict
+        else:
+            out_dict['LR'] = self.LR.data[0].float().cpu()
+            out_dict['SR'] = self.SR.data[0].float().cpu()
+            if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
+                                                                            self.opt['rgb_range'])
+            if need_HR:
+                out_dict['k'] = self.k.data[0].float().cpu()
+                if need_np: out_dict['k'] = util.Tensor2np([out_dict['k']],
+                                                            -1)[0]
+            return out_dict
+
 
 
     def save_current_visual(self, epoch, iter):
@@ -458,17 +467,17 @@ class SRSolver(BaseSolver):
 
     def get_current_log_SR(self):
         log = OrderedDict()
-        log['epoch'] = self.cur_epoch
-        log['best_pred'] = self.best_pred
-        log['best_epoch'] = self.best_epoch
-        log['records'] = self.records
+        log['epoch'] = self.cur_epoch_SR
+        log['best_pred'] = self.best_pred_SR
+        log['best_epoch'] = self.best_epoch_SR
+        log['records'] = self.records_SR
         return log
 
     def set_current_log_SR(self, log):
-        self.cur_epoch = log['epoch']
-        self.best_pred = log['best_pred']
-        self.best_epoch = log['best_epoch']
-        self.records = log['records']
+        self.cur_epoch_SR = log['epoch']
+        self.best_pred_SR = log['best_pred']
+        self.best_epoch_SR = log['best_epoch']
+        self.records_SR = log['records']
 
     def get_current_log_netG(self):
         log_netG = OrderedDict()

@@ -1,5 +1,6 @@
 import torch.utils.data as data
-
+import torch
+import torch.nn.functional as F
 from data import common
 
 
@@ -15,6 +16,7 @@ class LRHRDataset(data.Dataset):
     def __init__(self, opt):
         super(LRHRDataset, self).__init__()
         self.opt = opt
+        print(opt)
         self.train = (opt['phase'] == 'train')
         self.split = 'train' if self.train else 'test'
         self.scale = self.opt['scale']
@@ -34,10 +36,24 @@ class LRHRDataset(data.Dataset):
         if self.train:
             hr = self._get_patch(hr)
             k = common.random_anisotropic_gaussian_kernel(self.opt['kernel_size'])
-        hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])
-        hr_blur = common.conv(hr, k, padding=self.opt['kernel_size']//2)
-        hr_blur = common.np2Tensor([hr_blur], self.opt['rgb_range'])
+        hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])[0]
+        input = hr_tensor.unsqueeze(0)
+
+        input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
+        # input = F.pad(input, pad=(self.opt['kernel_size'] // 2, self.opt['kernel_size']// 2, self.opt['kernel_size']// 2, self.opt['kernel_size']// 2),
+        #                 mode='circular')
+        kernel = k.unsqueeze(0)
+
+        hr_blur = common.conv(input, kernel, padding=self.opt['kernel_size']//2)
+        # print(hr_blur.shape)
+        hr_blur = hr_blur.permute(1, 0, 2, 3)
         lr_tensor = common.downsample(hr_blur)
+        hr_blur = hr_blur.squeeze(0)
+        lr_tensor = lr_tensor.squeeze(0)
+        # print('lr.shape: {}'.format(lr_tensor.shape))
+        # print('k.shape: {}'.format(k.shape))
+        # print('hr_blur.shape: {}'.format(hr_blur.shape))
+        # print('hr.shape: {}'.format(hr_tensor.shape))
         return {'LR': lr_tensor, 'k': k, 'HR_blur': hr_blur, 'HR': hr_tensor, 'HR_path': hr_path}
 
 
@@ -69,6 +85,7 @@ class LRHRDataset(data.Dataset):
         # random crop and augment
         hr = common.get_patch(
             hr, LR_size, self.scale)
-        hr = common.augment([hr])
+        hr = common.augment([hr])[0]
+        # print(type(hr))
 
         return hr                                                                                                                                                                                                                                                                                                                         

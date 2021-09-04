@@ -11,17 +11,17 @@ from models.backbones.unet_parts import UnetSkipConnectionBlock
 class KernelExtractor(nn.Module):
     def __init__(self, opt):
         super(KernelExtractor, self).__init__()
-
+        print(opt)
         nf = opt["nf"]
         self.kernel_dim = opt["kernel_dim"]
-        self.use_sharp = opt["KernelExtractor"]["use_sharp"]
+        self.use_sharp = opt["use_sharp"]
         self.use_vae = opt["use_vae"]
 
         # Blur estimator
-        norm_layer = arch_util.get_norm_layer(opt["KernelExtractor"]["norm"])
-        n_blocks = opt["KernelExtractor"]["n_blocks"]
-        padding_type = opt["KernelExtractor"]["padding_type"]
-        use_dropout = opt["KernelExtractor"]["use_dropout"]
+        norm_layer = arch_util.get_norm_layer(opt["norm"])
+        n_blocks = opt["n_blocks"]
+        padding_type = opt["padding_type"]
+        use_dropout = opt["use_dropout"]
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:

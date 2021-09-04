@@ -79,15 +79,15 @@ def init_weights(net, init_type='kaiming', scale=1, std=0.02):
 
 def create_model(opt):
     if opt['mode'] == 'sr':
-        net = define_net(opt['networks'])
+        net = define_net(opt)
         return net
     else:
         raise NotImplementedError("The mode [%s] of networks is not recognized." % opt['mode'])
 
 # choose one network
 def define_net(opt):
-
-    which_model = opt['which_model'].upper()
+    # print(opt)
+    which_model = opt['network']['which_model'].upper()
     print('===> Building network [%s]...'%which_model)
 
     if which_model == 'IDK':

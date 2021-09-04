@@ -12,29 +12,41 @@
 
     "datasets": {
         "train": {
-            "mode": "LRHR",
-            "dataroot_HR": "../dataset/result_noise/HR_x4_npy",
+            "mode": "LRHR_train",
+            "dataroot_HR": "../SRbenchmark/HR_x4_npy",
             "data_type": "npy",
             "n_workers": 0,
-            "batch_size": 128,
+            "batch_size": 2,
             "LR_size": 48,
             "use_flip": true,
             "use_rot": true,
-            "noise": "."
+            "noise": ".",
+            "phase": "train",
+            "scale": 4,
+            "kernel_size": 15,
+            "rgb_range": 255
         },
         "val_SR": {
             "mode": "LRHR",
             "dataroot_HR": "../SRbenchmark/HR_x4",
-            "data_type": "img"
+            "data_type": "img",
+            "phase": "test",
+            "scale": 4,
+            "kernel_size": 15,
+            "rgb_range": 255
         },
         "val_kernel": {
             "mode": "LRHR_kernel",
             "dataroot_HR": "../SRbenchmark/HR_x4",
-            "data_type": "img"
+            "data_type": "img",
+            "phase": "test",
+            "scale": 4,
+            "kernel_size": 15,
+            "rgb_range": 255
         }
     },
 
-    "networks": {
+    "network": {
         "which_model": "IDK",
         "SR":{
             "num_features": 64,
@@ -45,19 +57,21 @@
             "upscale_factor": 4
         },
         "KernelExtractor":{
-            "norm": "None",
+            "nf": 64,
+            "kernel_dim": 512,
+            "use_vae": false,
+            "norm": "none",
             "use_sharp": true,
             "n_blocks": 4,
             "padding_type": "reflect",
             "use_dropout": false
         },
         "DIP":{
+            "input_nc": 8,
+            "output_nc": 3,
             "nf": 64,
-            "n_blocks'": 6,
-            "padding_type": "reflect",
-            "use_dropout": false,
-            "kernel_dim": 512,
-            "norm": "None"
+            "norm": "none",
+            "padding_type": "reflect"
         } 
     },
 
@@ -71,6 +85,7 @@
         "loss_type": "l1",
         "manual_seed": 0,
         "num_epochs": 500,
+        "epoch_m1": 200,
         "skip_threshold": 3,
         "split_batch": 2,
         "save_ckp_step": 500,

@@ -15,7 +15,11 @@ def create_dataloader(dataset, dataset_opt):
 
 def create_dataset(dataset_opt):
     mode = dataset_opt['mode'].upper()
-    if mode == 'LRHR':
+    if mode == 'LRHR_TRAIN':
+        from data.LRHR_train_dataset import LRHRDataset as D
+    elif mode == 'LRHR_KERNEL':
+        from data.kernel_dataset import LRHRDataset as D
+    elif mode == 'LRHR':
         from data.LRHR_dataset import LRHRDataset as D
     else:
         raise NotImplementedError("Dataset [%s] is not recognized." % mode)

@@ -1,7 +1,7 @@
 from models.backbones import edsr
 from models.dips import ImageDIP
 from models.kernel_encoding.kernel_wizard import KernelExtractor
-from sr import common
+from models.sr import common
 
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 from collections import OrderedDict
@@ -12,14 +12,14 @@ import torch.nn as nn
 
 class IDK(nn.Module):
     def __init__(self, opt):
-        super(IDK, self).__init__(opt)
+        super(IDK, self).__init__()
 
         # define network and load pretrained models
         model = []
-        self.DIP = ImageDIP(opt["network"]["DIP"]).to(self.device)
-        self.SR = edsr.EDSR(opt["network"]["SR"]["in_channels"], opt["network"]["SR"]["out_channels"], opt["network"]["SR"]["num_features"], opt["SR"]["num_blocks"]\
-            , opt["network"]["SR"]["res_scale"], opt["network"]["SR"]["upscale_factor"]).to(self.device)
-        self.netG = KernelExtractor(opt["network"]["KernelExtractor"]).to(self.device)
+        self.DIP = ImageDIP(opt["network"]["DIP"])
+        self.SR = edsr.EDSR(opt["network"]["SR"]["in_channels"], opt["network"]["SR"]["out_channels"], opt["network"]["SR"]["num_features"], opt["network"]["SR"]["num_blocks"]\
+            , opt["network"]["SR"]["res_scale"], opt["network"]["SR"]["upscale_factor"])
+        self.netG = KernelExtractor(opt["network"]["KernelExtractor"])
         self.is_train = opt["is_train"]
 
         self.scale = opt["network"]["SR"]["upscale_factor"]

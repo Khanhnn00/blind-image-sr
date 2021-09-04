@@ -34,14 +34,19 @@ class LRHRDataset(data.Dataset):
         if self.train:
             hr = self._get_patch(hr)
         k = common.random_anisotropic_gaussian_kernel()
-        hr_blur = common.conv(hr, k, padding=self.opt['kernel_size']//2)
-        hr_blur = common.np2Tensor([hr_blur], self.opt['rgb_range'])
-        hr_blur, hr_tensor = common.np2Tensor([hr_blur, hr], self.opt['rgb_range'])
+        
+        hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])[0]
+        input = hr_tensor.unsqueeze(0)
+        input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
+        kernel = k.unsqueeze(0)
+        hr_blur = common.conv(input, kernel, padding=self.opt['kernel_size']//2)
+        hr_blur = hr_blur.permute(1, 0, 2, 3)
+        hr_blur = hr_blur.squeeze(0)
         return {'HR_blur': hr_blur, 'k': k, 'HR': hr_tensor, 'HR_path': hr_path}
 
 
     def __len__(self):
-        return len(self.paths_LR)
+        return len(self.paths_HR)
 
 
     def _get_index(self, idx):

@@ -144,6 +144,7 @@ def get_patch_hrx(img_in, img_x, img_tar, patch_size, scale):
 ####################
 def np2Tensor(l, rgb_range):
     def _np2Tensor(img):
+        # print(type(img))
         #if img.shape[2] == 3: # for opencv imread
         #    img = img[:, :, [2, 1, 0]]
         np_transpose = np.ascontiguousarray(img.transpose((2, 0, 1)))
@@ -164,9 +165,10 @@ def conv(inp, k, padding):
     return F.conv2d(inp, k, padding=padding)
 
 def downsample(img):
-    return F.interpolate(img, scale_factor=1/4, mode='bicubic')
+    return F.interpolate(img, scale_factor=(1/4, 1/4), mode='bicubic')
 
 def get_patch(img_tar, patch_size, scale):
+    # print(type(img_tar))
     oh, ow = img_tar.shape[:2]
 
 
@@ -177,7 +179,7 @@ def get_patch(img_tar, patch_size, scale):
     ty = random.randrange(0, oh - tp + 1)
 
     img_tar = img_tar[ty:ty + tp, tx:tx + tp, :]
-
+    # print(type(img_tar))
     return img_tar
 
 def get_patch_lrx(img_in, img_inx, img_tar, patch_size, scale):

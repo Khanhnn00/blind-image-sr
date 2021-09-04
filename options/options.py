@@ -40,11 +40,11 @@ def parse(opt_path):
         dataset['rgb_range'] = rgb_range
         
     # for network initialize
-    opt['networks']['scale'] = opt['scale']
-    network_opt = opt['networks']
+    # opt['networks']['scale'] = opt['scale']
+    network_opt = opt['network']
 
-    config_str = '%s_in%df%d_x%d'%(network_opt['which_model'].upper(), network_opt['in_channels'],
-                                                        network_opt['num_features'], opt['scale'])
+    config_str = '%s_in%df%d_x%d'%(network_opt['which_model'].upper(), network_opt['SR']['in_channels'],
+                                                        network_opt['SR']['num_features'], network_opt['SR']['upscale_factor'])
     exp_path = os.path.join(os.getcwd(), 'experiments', config_str)
 
     if opt['is_train'] and opt['solver']['pretrain']:
