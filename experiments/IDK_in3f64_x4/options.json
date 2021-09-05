@@ -13,10 +13,10 @@
   "datasets": {
     "train": {
       "mode": "LRHR_train",
-      "dataroot_HR": "../SRbenchmark/HR_x4_npy",
+      "dataroot_HR": "../dataset/result/HR_x4_npy",
       "data_type": "npy",
       "n_workers": 0,
-      "batch_size": 2,
+      "batch_size": 48,
       "LR_size": 48,
       "use_flip": true,
       "use_rot": true,
@@ -28,7 +28,7 @@
     },
     "val_SR": {
       "mode": "LRHR",
-      "dataroot_HR": "../SRbenchmark/HR_x4",
+      "dataroot_HR": "../SRbenchmark/BSD100",
       "data_type": "img",
       "phase": "val",
       "scale": 4,
@@ -37,7 +37,7 @@
     },
     "val_kernel": {
       "mode": "LRHR_kernel",
-      "dataroot_HR": "../SRbenchmark/HR_x4",
+      "dataroot_HR": "../SRbenchmark/BSD100",
       "data_type": "img",
       "phase": "val",
       "scale": 4,
@@ -102,7 +102,7 @@
       1.0
     ]
   },
-  "timestamp": "210904-133014",
+  "timestamp": "210904-144221",
   "path": {
     "exp_root": "experiments/IDK_in3f64_x4",
     "epochs": "experiments/IDK_in3f64_x4/epochs",

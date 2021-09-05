@@ -112,7 +112,7 @@ class SRSolver(BaseSolver):
             self.HR.resize_(target.size()).copy_(target)
 
     def feed_data_val(self, batch, which=1):
-        if which ==1:
+        if which==1:
             input = batch['LR']
             self.LR.resize_(input.size()).copy_(input)
 
@@ -343,9 +343,9 @@ class SRSolver(BaseSolver):
                 'epoch': epoch,
                 'state_dict': self.model.module.SR.state_dict(),
                 'optimizer': self.optimizer1.state_dict(),
-                'best_pred': self.best_pred1,
-                'best_epoch': self.best_epoch1,
-                'records': self.records1
+                'best_pred': self.best_pred_SR,
+                'best_epoch': self.best_epoch_SR,
+                'records': self.records_SR
             }
         else:
             filename = os.path.join(self.checkpoint_dir, 'netG_last_ckp.pth')
@@ -354,9 +354,9 @@ class SRSolver(BaseSolver):
                 'epoch': epoch,
                 'state_dict': self.model.module.netG.state_dict(),
                 'optimizer': self.optimizer2.state_dict(),
-                'best_pred': self.best_pred2,
-                'best_epoch': self.best_epoch2,
-                'records': self.records2
+                'best_pred': self.best_pred_netG,
+                'best_epoch': self.best_epoch_netG,
+                'records': self.records_netG
             }
         # else:
         #     filename = os.path.join(self.checkpoint_dir, 'last_ckp.pth')
@@ -459,10 +459,10 @@ class SRSolver(BaseSolver):
             return self.optimizer1.param_groups[0]['lr']
         return self.optimizer2.param_groups[0]['lr']
 
-    def update_learning_rate1(self, epoch):
+    def update_learning_rate_SR(self, epoch):
         self.scheduler1.step(epoch)
 
-    def update_learning_rate2(self, epoch):
+    def update_learning_rate_netG(self, epoch):
         self.scheduler2.step(epoch)
 
     def get_current_log_SR(self):
@@ -495,22 +495,22 @@ class SRSolver(BaseSolver):
 
     def save_current_log_SR(self):
         data = {}
-        for i in self.records.keys():
+        for i in self.records_SR.keys():
             data[i] = self.records_SR[i]
         data_frame = pd.DataFrame(
             data,
-            index=range(1, self.cur_epoch + 1)
+            index=range(1, self.cur_epoch_SR + 1)
         )
         data_frame.to_csv(os.path.join(self.records_dir, 'SR_train_records.csv'),
                           index_label='epoch')
 
     def save_current_log_netG(self):
         data = {}
-        for i in self.records.keys():
+        for i in self.records_netG.keys():
             data[i] = self.records_netG[i]
         data_frame = pd.DataFrame(
             data,
-            index=range(1, self.cur_epoch + 1)
+            index=range(1, (self.cur_epoch_netG -  self.cur_epoch_SR)+ 1)
         )
         data_frame.to_csv(os.path.join(self.records_dir, 'netG_train_records.csv'),
                           index_label='epoch')

@@ -10,7 +10,7 @@ from solvers import create_solver
 from data import create_dataloader
 from data import create_dataset
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log, loader_list, opt, which):
     train_loss_list = []
@@ -35,36 +35,36 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
 
         print('===> Validating...',)
 
-        for val_loader in loader_list:
-            val_loss_list = []
-            psnr_list = []
-            ssim_list = []
-            for iter, batch in enumerate(val_loader):
-                solver.feed_data_val(batch, which=which)
-                iter_loss = solver.test(which=which)
-                val_loss_list.append(iter_loss)
+        val_loader = loader_list[which-1]
+        val_loss_list = []
+        psnr_list = []
+        ssim_list = []
+        for iter, batch in enumerate(val_loader):
+            solver.feed_data_val(batch, which=which)
+            iter_loss = solver.test(which=which)
+            val_loss_list.append(iter_loss)
 
-                # calculate evaluation metrics
-                visuals = solver.get_current_visual(which=which)
-                if which ==1:
-                    psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
-                else:
-                    psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=False)
-                psnr_list.append(psnr)
-                ssim_list.append(ssim)
+            # calculate evaluation metrics
+            visuals = solver.get_current_visual(which=which)
+            if which ==1:
+                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
+            else:
+                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=False)
+            psnr_list.append(psnr)
+            ssim_list.append(ssim)
 
-                if opt["save_image"]:
-                    solver.save_current_visual(epoch, iter)
-            if 'val_loss' not in solver_log['records']:
-                solver_log['records']['val_loss']= []
-            if 'psnr' not in solver_log['records']:
-                solver_log['records']['psnr'] = []
-            if 'ssim' not in solver_log['records']:
-                solver_log['records']['ssim'] = []
-            
-            solver_log['records']['val_loss'].append(sum(val_loss_list)/len(val_loss_list))
-            solver_log['records']['psnr'].append(sum(psnr_list)/len(psnr_list))
-            solver_log['records']['ssim'].append(sum(ssim_list)/len(ssim_list))
+            if opt["save_image"]:
+                solver.save_current_visual(epoch, iter)
+        if 'val_loss' not in solver_log['records']:
+            solver_log['records']['val_loss']= []
+        if 'psnr' not in solver_log['records']:
+            solver_log['records']['psnr'] = []
+        if 'ssim' not in solver_log['records']:
+            solver_log['records']['ssim'] = []
+        
+        solver_log['records']['val_loss'].append(sum(val_loss_list)/len(val_loss_list))
+        solver_log['records']['psnr'].append(sum(psnr_list)/len(psnr_list))
+        solver_log['records']['ssim'].append(sum(ssim_list)/len(ssim_list))
 
     # record the best epoch
     epoch_is_best = False

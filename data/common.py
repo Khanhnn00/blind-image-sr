@@ -101,7 +101,7 @@ def read_img(path, data_type):
 
     if img.ndim == 2:
         img = np.expand_dims(img, axis=2)
-    return img
+    return modcrop(img, 4)
 ####################
 #for BD degradation#
 

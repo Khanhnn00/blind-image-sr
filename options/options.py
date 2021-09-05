@@ -47,9 +47,9 @@ def parse(opt_path):
                                                         network_opt['SR']['num_features'], network_opt['SR']['upscale_factor'])
     exp_path = os.path.join(os.getcwd(), 'experiments', config_str)
 
-    if opt['is_train'] and opt['solver']['pretrain']:
-        if 'pretrained_path' not in list(opt['solver'].keys()): raise ValueError("[Error] The 'pretrained_path' does not declarate in *.json")
-        exp_path = os.path.dirname(os.path.dirname(opt['solver']['pretrained_path']))
+    if opt['is_train'] and opt['solver']['pretrain_SR']:
+        if 'pretrainedSR_path' not in list(opt['solver'].keys()): raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
+        exp_path = os.path.dirname(os.path.dirname(opt['solver']['pretrainedSR_path']))
         if opt['solver']['pretrain'] == 'finetune': exp_path += '_finetune'
 
     exp_path = os.path.relpath(exp_path)
@@ -63,7 +63,7 @@ def parse(opt_path):
 
     if opt['is_train']:
         # create folders
-        if opt['solver']['pretrain'] == 'resume':
+        if opt['solver']['pretrain_SR'] == 'resume':
             opt = dict_to_nonedict(opt)
         else:
             util.mkdir_and_rename(opt['path']['exp_root'])  # rename old experiments if exists
