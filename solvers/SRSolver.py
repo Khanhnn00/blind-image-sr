@@ -54,14 +54,14 @@ class SRSolver(BaseSolver):
             weight_decay = self.train_opt['weight_decay'] if self.train_opt['weight_decay'] else 0
             optim_type = self.train_opt['type'].upper()
             if optim_type == "ADAM":
-                self.optimizer1 = optim.Adam(self.model.parameters(),
+                self.optimizer1 = optim.Adam(self.model.module.SR.parameters(),
                                             lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
 
             optim_type = self.train_opt['type'].upper()
             if optim_type == "ADAM":
-                self.optimizer2 = optim.Adam(self.model.parameters(),
+                self.optimizer2 = optim.Adam(self.model.module.netG.parameters(),
                                             lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
@@ -123,8 +123,8 @@ class SRSolver(BaseSolver):
             blur = batch['HR_blur']
             k = batch['k']
             self.HR.resize_(target.size()).copy_(target)
-            self.HR_blur.resize_(target.size()).copy_(blur)
-            self.k.resize_(target.size()).copy_(k)
+            self.HR_blur.resize_(blur.size()).copy_(blur)
+            self.k.resize_(k.size()).copy_(k)
         
         
 
@@ -213,6 +213,7 @@ class SRSolver(BaseSolver):
             with torch.no_grad():
                 pred_k = self.model.module.netG(self.HR, self.HR_blur)
                 self.SR = pred_k
+                print(self.SR.shape)
             self.model.module.netG.train()
             if self.is_train:
                 loss_pix = self.criterion_pix(self.SR, self.k)
@@ -384,28 +385,47 @@ class SRSolver(BaseSolver):
         """
         load or initialize network
         """
-        if (self.is_train and self.opt['solver']['pretrain']) or not self.is_train:
-            model_path = self.opt['solver']['pretrained_path']
-            if model_path is None: raise ValueError("[Error] The 'pretrained_path' does not declarate in *.json")
+        if (self.is_train and self.opt['solver']['pretrain_SR']):
+            model_path = self.opt['solver']['pretrainedSR_path']
+            if model_path is None: raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
 
             print('===> Loading model from [%s]...' % model_path)
             if self.is_train:
                 checkpoint = torch.load(model_path)
-                self.model.load_state_dict(checkpoint['state_dict'])
+                self.model.module.SR.load_state_dict(checkpoint['state_dict'])
 
-                if self.opt['solver']['pretrain'] == 'resume':
-                    self.cur_epoch = checkpoint['epoch'] + 1
-                    self.optimizer.load_state_dict(checkpoint['optimizer'])
-                    self.best_pred = checkpoint['best_pred']
-                    self.best_epoch = checkpoint['best_epoch']
-                    self.records = checkpoint['records']
+                if self.opt['solver']['pretrain_SR'] == 'resume':
+                    self.cur_epoch_SR = checkpoint['epoch'] + 1
+                    # self.optimizer1.load_state_dict(checkpoint['optimizer'])
+                    self.best_pred_SR = checkpoint['best_pred']
+                    self.best_epoch_SR = checkpoint['best_epoch']
+                    self.records_SR = checkpoint['records']
 
             else:
                 checkpoint = torch.load(model_path)
                 if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
-                load_func = self.model.module.load_state_dict if isinstance(self.model, nn.DataParallel) \
-                    else self.model.module.load_state_dict
+                load_func = self.model.module.SR.load_state_dict
                 load_func(checkpoint)
+
+        if not self.is_train:
+            SR_path = self.opt['solver']['pretrainedSR_path']
+            netG_path = self.opt['solver']['pretrainednetG_path']
+            if SR_path is None: raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
+            if netG_path is None: raise ValueError("[Error] The 'pretrainednetG_path' does not declarate in *.json")
+
+            print('===> Loading SR module from [%s]...' % SR_path)
+        
+            checkpoint = torch.load(SR_path)
+            if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
+            load_func = self.model.module.SR.load_state_dict
+            load_func(checkpoint)
+
+            print('===> Loading netG module from [%s]...' % SR_path)
+        
+            checkpoint = torch.load(netG_path)
+            if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
+            load_func = self.model.module.netG.load_state_dict
+            load_func(checkpoint)
 
 
     def get_current_visual(self, need_np=True, need_HR=True, which=1):

@@ -261,7 +261,7 @@ def anisotropic_gaussian_kernel(width, inv_cov):
     return kernel
 
 
-def random_anisotropic_gaussian_kernel(width=16, sig_min=0.2, sig_max=4.0):
+def random_anisotropic_gaussian_kernel(width=15, sig_min=0.2, sig_max=4.0):
     # width : kernel size of anisotropic gaussian filter
     # sig_min : minimum of standard deviation
     # sig_max : maximum of standard deviation

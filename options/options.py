@@ -50,7 +50,7 @@ def parse(opt_path):
     if opt['is_train'] and opt['solver']['pretrain_SR']:
         if 'pretrainedSR_path' not in list(opt['solver'].keys()): raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
         exp_path = os.path.dirname(os.path.dirname(opt['solver']['pretrainedSR_path']))
-        if opt['solver']['pretrain'] == 'finetune': exp_path += '_finetune'
+        if opt['solver']['pretrain_SR'] == 'finetune': exp_path += '_finetune'
 
     exp_path = os.path.relpath(exp_path)
 

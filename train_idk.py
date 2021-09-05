@@ -10,9 +10,10 @@ from solvers import create_solver
 from data import create_dataloader
 from data import create_dataset
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
 
 def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log, loader_list, opt, which):
+    # print(solver_log)
     train_loss_list = []
     with tqdm(total=len(train_loader), desc='Epoch: [%d/%d]'%(epoch, NUM_EPOCH), miniters=1) as t:
         for iter, batch in enumerate(train_loader):
@@ -49,7 +50,7 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             if which ==1:
                 psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
             else:
-                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=False)
+                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['k'], crop_border=0, test_Y=False)
             psnr_list.append(psnr)
             ssim_list.append(ssim)
 
@@ -148,24 +149,27 @@ def main():
     print("Method: %s || Scale: %d || Epoch Range: (%d ~ %d)"%(model_name, scale, start_epoch, NUM_EPOCH))
 
     for epoch in range(start_epoch, NUM_EPOCH + 1):
-        if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
-            print('\n===> Training Epoch: [%d/%d] SR module ...  Learning Rate: %f'%(epoch,
-                                                                        NUM_EPOCH,
-                                                                        solver.get_current_learning_rate(1)))
-
-        # Initialization
-        
-
-        # Train model
-        
-            solver_log_SR['epoch'] = epoch
-            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
-        else:
+        if solver.opt['solver']['netG_only']:
             print('\n===> Training Epoch: [%d/%d] netG module ...  Learning Rate: %f'%(epoch,
                                                                         NUM_EPOCH,
-                                                                        solver.get_current_learning_rate(2)))
-            solver_log_netG['epoch'] = epoch
+                                                                        solver.get_current_learning_rate(2)))        
+            solver_log_SR['epoch'] = epoch
             train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
+        
+        else:
+            if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
+                print('\n===> Training Epoch: [%d/%d] SR module ...  Learning Rate: %f'%(epoch,
+                                                                            NUM_EPOCH,
+                                                                            solver.get_current_learning_rate(1)))
+           
+                solver_log_SR['epoch'] = epoch
+                train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
+            else:
+                print('\n===> Training Epoch: [%d/%d] netG module ...  Learning Rate: %f'%(epoch,
+                                                                            NUM_EPOCH,
+                                                                            solver.get_current_learning_rate(2)))
+                solver_log_netG['epoch'] = epoch
+                train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
 
 
 

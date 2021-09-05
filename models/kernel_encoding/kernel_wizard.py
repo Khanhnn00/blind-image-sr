@@ -1,5 +1,5 @@
 import functools
-
+import torch.nn.functional as F
 import models.arch_util as arch_util
 import torch
 import torch.nn as nn
@@ -8,6 +8,69 @@ from models.backbones.unet_parts import UnetSkipConnectionBlock
 
 
 # The function F in the paper
+
+class EncBlock(nn.Module):
+    def __init__(self, input_nc, nf, padding_type, norm_layer, use_dropout, use_bias):
+        super(EncBlock, self).__init__()
+        head = [
+            nn.Conv2d(input_nc, nf, kernel_size=3, padding=1, stride=1),
+            ResnetBlock(
+                    nf,
+                    padding_type=padding_type,
+                    norm_layer=norm_layer,
+                    use_dropout=use_dropout,
+                    use_bias=use_bias,
+                ),
+            ResnetBlock(
+                    nf,
+                    padding_type=padding_type,
+                    norm_layer=norm_layer,
+                    use_dropout=use_dropout,
+                    use_bias=use_bias,
+                ),
+            nn.ReLU(True),
+        ]
+        self.max = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.model = nn.Sequential(*head)
+    
+    def forward(self,x):
+        x = self.model(x)
+
+        out = self.max(x)
+        return x, out
+
+class DecBlock(nn.Module):
+    def __init__(self, input_nc, nf, padding_type, norm_layer, use_dropout, use_bias):
+        super(DecBlock, self).__init__()
+        head = [
+            nn.ConvTranspose2d(input_nc, nf, kernel_size=4, padding=1, stride=2),
+        ]
+        tail = [
+            nn.Conv2d(nf*2, nf, kernel_size=3, padding=1, stride=1),
+            ResnetBlock(
+                    nf,
+                    padding_type=padding_type,
+                    norm_layer=norm_layer,
+                    use_dropout=use_dropout,
+                    use_bias=use_bias,
+                ),
+            ResnetBlock(
+                    nf,
+                    padding_type=padding_type,
+                    norm_layer=norm_layer,
+                    use_dropout=use_dropout,
+                    use_bias=use_bias,
+                ),
+            nn.ReLU(True)
+        ]
+        self.head = nn.Sequential(*head)
+        self.tail = nn.Sequential(*tail)
+    
+    def forward(self, x, enc):
+        x = self.head(x)
+        x = torch.cat((x, enc), dim=1)
+        return self.tail(x)
+
 class KernelExtractor(nn.Module):
     def __init__(self, opt):
         super(KernelExtractor, self).__init__()
@@ -19,7 +82,6 @@ class KernelExtractor(nn.Module):
 
         # Blur estimator
         norm_layer = arch_util.get_norm_layer(opt["norm"])
-        n_blocks = opt["n_blocks"]
         padding_type = opt["padding_type"]
         use_dropout = opt["use_dropout"]
         if type(norm_layer) == functools.partial:
@@ -27,142 +89,46 @@ class KernelExtractor(nn.Module):
         else:
             use_bias = norm_layer == nn.InstanceNorm2d
 
-        input_nc = nf * 2 if self.use_sharp else nf
-        output_nc = self.kernel_dim * 2 if self.use_vae else self.kernel_dim
-
-        model = [
-            nn.ReflectionPad2d(3),
-            nn.Conv2d(input_nc, nf, kernel_size=7, padding=0, bias=use_bias),
-            norm_layer(nf),
-            nn.ReLU(True),
+        input_nc = opt['in_channels'] * 2 if self.use_sharp else opt['in_channels']
+        output_nc = opt['out_channels'] * 2 if self.use_vae else opt['out_channels']
+        
+        self.enc1 = EncBlock(input_nc, nf, padding_type=padding_type, norm_layer=norm_layer, \
+            use_bias=use_bias, use_dropout=use_dropout)
+        self.enc2 = EncBlock(nf, nf*2, padding_type=padding_type, norm_layer=norm_layer, \
+            use_bias=use_bias, use_dropout=use_dropout)
+        self.conv1 = [
+            nn.Conv2d(nf*2, nf*4, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(True)
         ]
+        for i in range(4):
 
-        n_downsampling = 5
-        for i in range(n_downsampling):  # add downsampling layers
-            mult = 2 ** i
-            inc = min(nf * mult, output_nc)
-            ouc = min(nf * mult * 2, output_nc)
-            model += [
-                nn.Conv2d(inc, ouc, kernel_size=3, stride=2, padding=1, bias=use_bias),
-                norm_layer(nf * mult * 2),
-                nn.ReLU(True),
+            self.conv1+= [
+                nn.Conv2d(nf*4, nf*4, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(True)
             ]
-
-        for i in range(n_blocks):  # add ResNet blocks
-            model += [
-                ResnetBlock(
-                    output_nc,
-                    padding_type=padding_type,
-                    norm_layer=norm_layer,
-                    use_dropout=use_dropout,
-                    use_bias=use_bias,
-                )
-            ]
-
-        self.model = nn.Sequential(*model)
+        self.conv1 = nn.Sequential(*self.conv1)
+        self.dec1 = DecBlock(nf*4, nf*2, padding_type, norm_layer, use_dropout, use_bias)
+        self.dec2 = DecBlock(nf*2, nf, padding_type, norm_layer, use_dropout, use_bias)
+        self.conv2 = [
+            nn.Conv2d(nf, nf, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(True),
+            nn.Conv2d(nf, 15*15, kernel_size=3, padding=1, stride=1),
+        ]
+        self.conv2 = nn.Sequential(*self.conv2)
 
     def forward(self, sharp, blur):
-        output = self.model(torch.cat((sharp, blur), dim=1))
-        if self.use_vae:
-            return output[:, : self.kernel_dim, :, :], output[:, self.kernel_dim :, :, :]
+        inp = torch.cat((sharp, blur), dim=1)
+        # print(inp.shape)
+        x1_, x1 = self.enc1(inp)
+        x2_, x2 = self.enc2(x1)
+        x3 = self.conv1(x2)
+        x4 = self.dec1(x3, x2_)
+        x5 = self.dec2(x4, x1_)
+        out = self.conv2(x5)
+        # print(out.shape)
 
-        return output, torch.zeros_like(output).cuda()
-
-
-# The function G in the paper
-class KernelAdapter(nn.Module):
-    def __init__(self, opt):
-        super(KernelAdapter, self).__init__()
-        input_nc = opt["nf"]
-        output_nc = opt["nf"]
-        ngf = opt["nf"]
-        norm_layer = arch_util.get_norm_layer(opt["Adapter"]["norm"])
-
-        # construct unet structure
-        unet_block = UnetSkipConnectionBlock(
-            ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True
-        )
-        # gradually reduce the number of filters from ngf * 8 to ngf
-        unet_block = UnetSkipConnectionBlock(
-            ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer
-        )
-        unet_block = UnetSkipConnectionBlock(
-            ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer
-        )
-        unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(
-            output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer
-        )
-
-    def forward(self, x, k):
-        """Standard forward"""
-        return self.model(x, k)
+        return torch.reshape(F.adaptive_avg_pool2d(out, (1, 1)), (out.shape[0],1,15,15))
 
 
-class KernelWizard(nn.Module):
-    def __init__(self, opt):
-        super(KernelWizard, self).__init__()
-        lrelu = nn.LeakyReLU(negative_slope=0.1)
-        front_RBs = opt["front_RBs"]
-        back_RBs = opt["back_RBs"]
-        num_image_channels = opt["input_nc"]
-        nf = opt["nf"]
 
-        # Features extraction
-        resBlock_noBN_f = functools.partial(ResidualBlock_noBN, nf=nf)
-        feature_extractor = []
 
-        feature_extractor.append(nn.Conv2d(num_image_channels, nf, 3, 1, 1, bias=True))
-        feature_extractor.append(lrelu)
-        feature_extractor.append(nn.Conv2d(nf, nf, 3, 2, 1, bias=True))
-        feature_extractor.append(lrelu)
-        feature_extractor.append(nn.Conv2d(nf, nf, 3, 2, 1, bias=True))
-        feature_extractor.append(lrelu)
-
-        for i in range(front_RBs):
-            feature_extractor.append(resBlock_noBN_f())
-
-        self.feature_extractor = nn.Sequential(*feature_extractor)
-
-        # Kernel extractor
-        self.kernel_extractor = KernelExtractor(opt)
-
-        # kernel adapter
-        self.adapter = KernelAdapter(opt)
-
-        # Reconstruction
-        recon_trunk = []
-        for i in range(back_RBs):
-            recon_trunk.append(resBlock_noBN_f())
-
-        # upsampling
-        recon_trunk.append(nn.Conv2d(nf, nf * 4, 3, 1, 1, bias=True))
-        recon_trunk.append(nn.PixelShuffle(2))
-        recon_trunk.append(lrelu)
-        recon_trunk.append(nn.Conv2d(nf, 64 * 4, 3, 1, 1, bias=True))
-        recon_trunk.append(nn.PixelShuffle(2))
-        recon_trunk.append(lrelu)
-        recon_trunk.append(nn.Conv2d(64, 64, 3, 1, 1, bias=True))
-        recon_trunk.append(lrelu)
-        recon_trunk.append(nn.Conv2d(64, num_image_channels, 3, 1, 1, bias=True))
-
-        self.recon_trunk = nn.Sequential(*recon_trunk)
-
-    def adaptKernel(self, x_sharp, kernel):
-        B, C, H, W = x_sharp.shape
-        base = x_sharp
-
-        x_sharp = self.feature_extractor(x_sharp)
-
-        out = self.adapter(x_sharp, kernel)
-        out = self.recon_trunk(out)
-        out += base
-
-        return out
-
-    def forward(self, x_sharp, x_blur):
-        x_sharp = self.feature_extractor(x_sharp)
-        x_blur = self.feature_extractor(x_blur)
-
-        output = self.kernel_extractor(x_sharp, x_blur)
-        return output

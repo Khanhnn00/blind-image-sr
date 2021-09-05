@@ -39,7 +39,10 @@ class LRHRDataset(data.Dataset):
         input = hr_tensor.unsqueeze(0)
         input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
         kernel = k.unsqueeze(0)
+    
         hr_blur = common.conv(input, kernel, padding=self.opt['kernel_size']//2)
+        # print(input.shape, hr_blur.shape)
+        assert input.shape == hr_blur.shape
         hr_blur = hr_blur.permute(1, 0, 2, 3)
         hr_blur = hr_blur.squeeze(0)
         return {'HR_blur': hr_blur, 'k': k, 'HR': hr_tensor, 'HR_path': hr_path}

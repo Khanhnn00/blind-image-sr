@@ -57,6 +57,8 @@
             "upscale_factor": 4
         },
         "KernelExtractor":{
+            "in_channels": 3,
+            "out_channels": 1,
             "nf": 64,
             "kernel_dim": 512,
             "use_vae": false,
@@ -92,7 +94,8 @@
         "save_vis_step": 1,
         "pretrain_SR": "resume",
         "pretrain_netG": null,
-        "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_best_ckp.pth",
+        "netG_only": true,
+        "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
         "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_best_ckp.pth"
     }
 }
