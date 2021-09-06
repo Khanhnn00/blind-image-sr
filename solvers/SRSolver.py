@@ -13,6 +13,8 @@ from .base_solver import BaseSolver
 from models import init_weights
 from utils import util
 
+from torchvision.utils import save_image
+
 class SRSolver(BaseSolver):
     def __init__(self, opt):
         super(SRSolver, self).__init__(opt)
@@ -104,6 +106,7 @@ class SRSolver(BaseSolver):
             target = batch['HR']
             blur = batch['HR_blur']
             k = batch['k']
+            # print('k trong feed data {} {}'.format(k.mean(), k.max()))
             self.HR.resize_(target.size()).copy_(target)
             self.HR_blur.resize_(blur.size()).copy_(blur)
             self.k.resize_(k.size()).copy_(k)
@@ -122,6 +125,7 @@ class SRSolver(BaseSolver):
             target = batch['HR']
             blur = batch['HR_blur']
             k = batch['k']
+            # print('k trong feed data val {} {}'.format(k.mean(), k.max()))
             self.HR.resize_(target.size()).copy_(target)
             self.HR_blur.resize_(blur.size()).copy_(blur)
             self.k.resize_(k.size()).copy_(k)
@@ -213,7 +217,7 @@ class SRSolver(BaseSolver):
             with torch.no_grad():
                 pred_k = self.model.module.netG(self.HR, self.HR_blur)
                 self.SR = pred_k
-                print(self.SR.shape)
+                # print(self.SR.shape)
             self.model.module.netG.train()
             if self.is_train:
                 loss_pix = self.criterion_pix(self.SR, self.k)
@@ -447,13 +451,18 @@ class SRSolver(BaseSolver):
             return out_dict
         else:
             out_dict['LR'] = self.LR.data[0].float().cpu()
-            out_dict['SR'] = self.SR.data[0].float().cpu()
-            if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
-                                                                            self.opt['rgb_range'])
+            out_dict['SR'] = self.SR.data[0].cpu()
+            if need_np:  
+                out_dict['LR'] = util.Tensor2np([out_dict['LR']], self.opt['rgb_range'])[0]
+                out_dict['SR'] = util.Tensor2np([out_dict['SR']], -1)[0]                                                                    
             if need_HR:
-                out_dict['k'] = self.k.data[0].float().cpu()
+                # print('Yes HR')
+                out_dict['k'] = self.k.data[0].cpu()
+                # print('k trong get current visual truoc khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
                 if need_np: out_dict['k'] = util.Tensor2np([out_dict['k']],
                                                             -1)[0]
+
+                # print('k trong get current visual sau khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
             return out_dict
 
 
@@ -462,16 +471,45 @@ class SRSolver(BaseSolver):
         """
         save visual results for comparison
         """
-        if epoch % self.save_vis_step == 0:
-            visuals_list = []
-            visuals = self.get_current_visual(need_np=False)
-            visuals_list.extend([util.quantize(visuals['HR'].squeeze(0), self.opt['rgb_range']),
-                                 util.quantize(visuals['SR'].squeeze(0), self.opt['rgb_range'])])
-            visual_images = torch.stack(visuals_list)
-            visual_images = thutil.make_grid(visual_images, nrow=2, padding=5)
-            visual_images = visual_images.byte().permute(1, 2, 0).numpy()
-            misc.imsave(os.path.join(self.visual_dir, 'epoch_%d_img_%d.png' % (epoch, iter + 1)),
-                        visual_images)
+        # if epoch % self.save_vis_step == 0:
+        visuals_list = []
+        visuals = self.get_current_visual(need_np=False, which=2)
+        print(type(visuals['k']))
+        visuals_list.extend([util.quantize(visuals['k'].squeeze(0), self.opt['rgb_range']),
+                                util.quantize(visuals['SR'].squeeze(0), self.opt['rgb_range'])])
+        # visual_images = torch.stack(visuals_list)
+        # visual_images = thutil.make_grid(visual_images, nrow=2, padding=5)
+        # visual_images = visual_images.byte().permute(1, 2, 0).numpy()
+        visuals['k'] = visuals['k'].squeeze(0).numpy()
+        visuals['SR'] = visuals['SR'].squeeze(0).numpy()
+        # print(visual_images.shape)
+        print('save o: {}'.format(os.path.join(self.visual_dir, 'epoch_%d_img_%d.png' % (epoch, iter + 1))))
+        misc.imsave(os.path.join(self.visual_dir, 'k_epoch_%d_img_%d.png' % (epoch, iter + 1)),
+                   visuals['k'])
+        misc.imsave(os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)),
+                  visuals['SR'])
+
+
+    def save_img(self, epoch, iter, gt, est):
+        
+        """
+        save visual results for comparison
+        """
+        # if epoch % self.save_vis_step == 0:
+        
+        # print(visual_images.shape)
+        print('save o: {}'.format(os.path.join(self.visual_dir, 'epoch_%d_img_%d.png' % (epoch, iter + 1))))
+        print(gt.shape)
+        gt_max, _ = gt.flatten(2).max(2, keepdim=True)
+        gt = gt / gt_max.unsqueeze(3)
+        est_max, _ = est.flatten(2).max(2, keepdim=True)
+        est = est / est_max.unsqueeze(3)
+        save_image(gt, os.path.join(self.visual_dir, 'GT_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
+        save_image(est, os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
+        # misc.imsave(os.path.join(self.visual_dir, 'k_epoch_%d_img_%d.png' % (epoch, iter + 1)),
+        #            visuals['k'])
+        # misc.imsave(os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)),
+        #           visuals['SR'])
 
 
     def get_current_learning_rate(self, module):
@@ -528,9 +566,11 @@ class SRSolver(BaseSolver):
         data = {}
         for i in self.records_netG.keys():
             data[i] = self.records_netG[i]
+        print('self.cur_epoch_netG: {}'.format(self.cur_epoch_netG))
+        print('self.cur_epoch_SR: {}'.format(self.cur_epoch_SR))
         data_frame = pd.DataFrame(
             data,
-            index=range(1, (self.cur_epoch_netG -  self.cur_epoch_SR)+ 1)
+            index=range(1, (self.cur_epoch_netG -  (self.cur_epoch_SR-1))+ 1)
         )
         data_frame.to_csv(os.path.join(self.records_dir, 'netG_train_records.csv'),
                           index_label='epoch')

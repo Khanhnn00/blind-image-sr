@@ -8,7 +8,7 @@
     "use_chop": true,
     "rgb_range": 255,
     "self_ensemble": false,
-    "save_image": false,
+    "save_image": true,
 
     "datasets": {
         "train": {
@@ -16,7 +16,7 @@
             "dataroot_HR": "../dataset/result/HR_x4_npy",
             "data_type": "npy",
             "n_workers": 0,
-            "batch_size": 48,
+            "batch_size": 26,
             "LR_size": 48,
             "use_flip": true,
             "use_rot": true,

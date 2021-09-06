@@ -2,13 +2,15 @@
 from tqdm import tqdm
 
 import torch
-
+import skimage.metrics
+import numpy as np
 import options.options as option
 from utils import util
 import os
 from solvers import create_solver
 from data import create_dataloader
 from data import create_dataset
+from torchvision.utils import save_image
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
 
@@ -40,6 +42,8 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
         val_loss_list = []
         psnr_list = []
         ssim_list = []
+        visual = []
+        visual_gt = []
         for iter, batch in enumerate(val_loader):
             solver.feed_data_val(batch, which=which)
             iter_loss = solver.test(which=which)
@@ -50,12 +54,24 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             if which ==1:
                 psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
             else:
-                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['k'], crop_border=0, test_Y=False)
+                # print(type(visuals['k']), visuals['k'].shape)
+                # print(visuals['k'].max(), visuals['k'].mean())
+                visual_gt.extend(np.expand_dims(visuals['k'], axis=0).transpose(0,3,1,2))
+                visual.extend(np.expand_dims(visuals['SR'], axis=0).transpose(0,3,1,2))
+                psnr, ssim = skimage.metrics.peak_signal_noise_ratio(visuals['k'], visuals['SR']),\
+                                skimage.metrics.structural_similarity(visuals['k'], visuals['SR'], multichannel=True)
+                # print(psnr, ssim)
             psnr_list.append(psnr)
             ssim_list.append(ssim)
-
-            if opt["save_image"]:
-                solver.save_current_visual(epoch, iter)
+        visual_gt = np.concatenate(visual_gt, axis=0)
+        print(visual_gt.shape)
+        visual = np.concatenate(visual, axis=0)
+        print(visual.shape)
+        visual = torch.from_numpy(visual).unsqueeze(1)
+        visual_gt = torch.from_numpy(visual_gt).unsqueeze(1)
+    
+        if opt["save_image"]:
+            solver.save_img(epoch, iter, visual_gt, visual)
         if 'val_loss' not in solver_log['records']:
             solver_log['records']['val_loss']= []
         if 'psnr' not in solver_log['records']:
@@ -153,7 +169,7 @@ def main():
             print('\n===> Training Epoch: [%d/%d] netG module ...  Learning Rate: %f'%(epoch,
                                                                         NUM_EPOCH,
                                                                         solver.get_current_learning_rate(2)))        
-            solver_log_SR['epoch'] = epoch
+            solver_log_netG['epoch'] = epoch
             train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
         
         else:

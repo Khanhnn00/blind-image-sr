@@ -113,8 +113,12 @@ def crop_border(img_list, crop_border):
 def Tensor2np(tensor_list, rgb_range):
 
     def _Tensor2numpy(tensor, rgb_range):
-        array = np.transpose(quantize(tensor, rgb_range).numpy(), (1, 2, 0)).astype(np.uint8)
-        return array
+        if rgb_range == -1:
+            array = np.transpose(tensor.numpy().clip(min=0), (1, 2, 0))
+            return array
+        else:
+            array = np.transpose(quantize(tensor, rgb_range).numpy().clip(min=0), (1, 2, 0)).astype(np.uint8)
+            return array
 
     return [_Tensor2numpy(tensor, rgb_range) for tensor in tensor_list]
 
