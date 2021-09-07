@@ -93,6 +93,11 @@ def define_net(opt):
     if which_model == 'IDK':
         from .sr.IDK import IDK
         net = IDK(opt)
+    
+    elif which_model == 'NETG':
+        from .kernel_encoding.kernel_wizard import KernelExtractor
+        net = KernelExtractor(opt)
+
     else:
         raise NotImplementedError("Network [%s] is not recognized." % which_model)
 

@@ -1,4 +1,4 @@
-﻿import os
+import os
 from collections import OrderedDict
 import pandas as pd
 import scipy.misc as misc
@@ -24,17 +24,13 @@ class SRSolver(BaseSolver):
         self.k = self.Tensor()
         self.HR = self.Tensor()
         self.HR_blur = self.Tensor()
-        self.HR_blur_pred = None
         self.SR = None
 
-        self.records_SR = {'train_loss': [],
-                        'lr': []
-        }
-
-        self.records_netG = {'train_loss': [],
+        self.records = {'train_loss': [],
                         'lr': []
         }
         self.model = create_model(opt)
+        self.model = create()
 
         if self.is_train:
             self.model.train()
@@ -44,49 +40,29 @@ class SRSolver(BaseSolver):
             # set loss
             loss_type = self.train_opt['loss_type']
             if loss_type == 'l1':
-                self.criterion_pix_SR = nn.L1Loss()
+                self.criterion_pix = nn.L1Loss()
             elif loss_type == 'l2':
-                self.criterion_pix_SR = nn.MSELoss()
+                self.criterion_pix = nn.MSELoss()
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!'%loss_type)
 
-            
-            self.criterion_pix_k = nn.MSELoss()
-            self.criterion_pix_netG = nn.MSELoss()
-
-
             if self.use_gpu:
                 self.criterion_pix = self.criterion_pix.cuda()
-                self.criterion_pix_k = self.criterion_pix_k.cuda()
-                self.criterion_pix_netG = self.criterion_pix_netG.cuda()
 
             # set optimizer
             weight_decay = self.train_opt['weight_decay'] if self.train_opt['weight_decay'] else 0
             optim_type = self.train_opt['type'].upper()
             if optim_type == "ADAM":
-                self.optimizer1 = optim.Adam(self.model.module.SR.parameters(),
+                self.optimizer = optim.Adam(self.model_SR.parameters(),
                                             lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
             else:
                 raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
 
-            optim_type = self.train_opt['type'].upper()
-            if optim_type == "ADAM":
-                self.optimizer2 = optim.Adam(self.model.module.netG.parameters(),
-                                            lr=self.train_opt['learning_rate'], weight_decay=weight_decay)
-            else:
-                raise NotImplementedError('Loss type [%s] is not implemented!' % optim_type)
 
             # set lr_scheduler
             if self.train_opt['lr_scheme'].lower() == 'multisteplr':
-                self.scheduler1 = optim.lr_scheduler.MultiStepLR(self.optimizer1,
+                self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer,
                                                                 self.train_opt['lr_steps'],
-                                                                self.train_opt['lr_gamma'])
-            else:
-                raise NotImplementedError('Only MultiStepLR scheme is supported!')
-
-            if self.train_opt['lr_scheme'].lower() == 'multisteplr':
-                self.scheduler2 = optim.lr_scheduler.MultiStepLR(self.optimizer2,
-                                                                self.train_opt['lr_steps_netG'],
                                                                 self.train_opt['lr_gamma'])
             else:
                 raise NotImplementedError('Only MultiStepLR scheme is supported!')
@@ -96,10 +72,8 @@ class SRSolver(BaseSolver):
 
         print('===> Solver Initialized : [%s]  || Use GPU : [%s]'%(self.__class__.__name__, self.use_gpu))
         if self.is_train:
-            print("optimizer1: ", self.optimizer1)
-            print("optimizer2: ", self.optimizer2)
-            print("lr_scheduler1 milestones: %s   gamma: %f"%(self.scheduler1.milestones, self.scheduler1.gamma))
-            print("lr_scheduler2 milestones: %s   gamma: %f"%(self.scheduler2.milestones, self.scheduler2.gamma))
+            print("optimizer: ", self.optimizer)
+            print("lr_scheduler milestones: %s   gamma: %f"%(self.scheduler.milestones, self.scheduler.gamma))
 
     def _net_init(self, init_type='kaiming'):
         print('==> Initializing the network using [%s]'%init_type)
@@ -122,61 +96,21 @@ class SRSolver(BaseSolver):
             target = batch['HR']
             self.HR.resize_(target.size()).copy_(target)
 
-    def feed_data_val(self, batch, which=1):
-        if which==1:
-            input = batch['LR']
-            self.LR.resize_(input.size()).copy_(input)
-
-            target = batch['HR_blur']
-            self.HR_blur.resize_(target.size()).copy_(target)
-        else:
-            target = batch['HR']
-            blur = batch['HR_blur']
-            k = batch['k']
-            # print('k trong feed data val {} {}'.format(k.mean(), k.max()))
-            self.HR.resize_(target.size()).copy_(target)
-            self.HR_blur.resize_(blur.size()).copy_(blur)
-            self.k.resize_(k.size()).copy_(k)
-        
+    def feed_data_val(self, batch):
+        target = batch['HR']
+        blur = batch['HR_blur']
+        k = batch['k']
+        # print('k trong feed data val {} {}'.format(k.mean(), k.max()))
+        self.HR.resize_(target.size()).copy_(target)
+        self.HR_blur.resize_(blur.size()).copy_(blur)
+        self.k.resize_(k.size()).copy_(k)
         
 
-    def train_m1(self):
-        self.model.module.netG.eval()
+    def train(self):
+        self.model_SR.eval()
+        self.model.train()
 
-        self.model.module.SR.train()
-        self.optimizer1.zero_grad()
-
-        loss_batch = 0.0
-        sub_batch_size = int(self.LR.size(0) / self.split_batch)
-        for i in range(self.split_batch):
-            with torch.autograd.set_detect_anomaly(True):
-                loss_sbatch = 0.0
-                split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
-                split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
-                output = self.model.module.SR(split_LR)
-                loss_sbatch = self.criterion_pix(output, split_HR_blur)
-
-                loss_sbatch /= self.split_batch
-                loss_sbatch.backward()
-
-                loss_batch += (loss_sbatch.item())
-
-        # for stable training
-        if loss_batch < self.skip_threshold * self.last_epoch_loss:
-            self.optimizer1.step()
-            self.last_epoch_loss = loss_batch
-        else:
-            print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
-
-        self.model.module.SR.eval()
-        return loss_batch
-
-
-    def train_m2(self):
-        self.model.module.SR.eval()
-        self.model.module.netG.train()
-
-        self.optimizer2.zero_grad()
+        self.optimizer.zero_grad()
 
         loss_batch = 0.0
         sub_batch_size = int(self.LR.size(0) / self.split_batch)
@@ -187,9 +121,9 @@ class SRSolver(BaseSolver):
                 split_k = self.k.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR = self.HR.narrow(0, i*sub_batch_size, sub_batch_size)
                 with torch.no_grad():
-                    HR_blur = self.model.module.SR(split_LR)
-                pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
-                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(HR_blur, pred_blur)
+                    HR_blur = self.model_SR(split_LR)
+                output = self.model(split_HR, HR_blur)
+                loss_sbatch = self.criterion_pix(output, split_k)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -198,38 +132,37 @@ class SRSolver(BaseSolver):
 
         # for stable training
         if loss_batch < self.skip_threshold * self.last_epoch_loss:
-            self.optimizer2.step()
+            self.optimizer.step()
             self.last_epoch_loss = loss_batch
         else:
             print('[Warning] Skip this batch! (Loss: {})'.format(loss_batch))
 
-        self.model.module.netG.eval()
+        self.model.eval()
         return loss_batch
 
 
     def test(self, which):
         if which ==1:
-            self.model.module.SR.eval()
+            self.model_SR.eval()
             with torch.no_grad():
                 forward_func = self._overlap_crop_forward if self.use_chop else self.model.forward
                 SR = forward_func(self.LR, n_GPUs=2)
 
                 self.SR = SR
 
-            self.model.module.SR.train()
+            self.model_SR.train()
             if self.is_train:
                 loss_pix = self.criterion_pix(self.SR, self.HR_blur)
                 return loss_pix.item()
         else:
-            self.model.module.netG.eval()
+            self.model.eval()
             with torch.no_grad():
-                pred_k, pred_blur = self.model.module.netG(self.HR, self.HR_blur)
+                pred_k = self.model(self.HR, self.HR_blur)
                 self.SR = pred_k
-                self.HR_blur_pred = pred_blur
                 # print(self.SR.shape)
-            self.model.module.netG.train()
+            self.model.train()
             if self.is_train:
-                loss_pix = self.criterion_pix(self.SR, self.k) + self.criterion_pix(self.HR_blur_pred, self.HR_blur)
+                loss_pix = self.criterion_pix(self.SR, self.k)
                 return loss_pix.item()
 
             
@@ -313,7 +246,7 @@ class SRSolver(BaseSolver):
                 if bic is not None:
                     bic_batch = torch.cat(bic_list[i:(i + n_GPUs)], dim=0)
 
-                sr_batch_temp = self.model.module.SR(lr_batch)
+                sr_batch_temp = self.model_SR(lr_batch)
 
                 if isinstance(sr_batch_temp, list):
                     sr_batch = sr_batch_temp[-1]
@@ -346,42 +279,22 @@ class SRSolver(BaseSolver):
         
     
 
-    def save_checkpoint(self, epoch, is_best, module):
+    def save_checkpoint(self, epoch, is_best):
         """
         save checkpoint to experimental dir
         """
-        if module == 1:
-            filename = os.path.join(self.checkpoint_dir, 'SR_last_ckp.pth')
-            print('===> Saving last checkpoint to [%s] ...]'%filename)
-            ckp = {
-                'epoch': epoch,
-                'state_dict': self.model.module.SR.state_dict(),
-                'optimizer': self.optimizer1.state_dict(),
-                'best_pred': self.best_pred_SR,
-                'best_epoch': self.best_epoch_SR,
-                'records': self.records_SR
-            }
-        else:
-            filename = os.path.join(self.checkpoint_dir, 'netG_last_ckp.pth')
-            print('===> Saving last checkpoint to [%s] ...]'%filename)
-            ckp = {
-                'epoch': epoch,
-                'state_dict': self.model.module.netG.state_dict(),
-                'optimizer': self.optimizer2.state_dict(),
-                'best_pred': self.best_pred_netG,
-                'best_epoch': self.best_epoch_netG,
-                'records': self.records_netG
-            }
-        # else:
-        #     filename = os.path.join(self.checkpoint_dir, 'last_ckp.pth')
-        #     print('===> Saving last checkpoint to [%s] ...]'%filename)
-        #     ckp = {
-        #         'epoch': epoch,
-        #         'state_dict': self.model.module.netG.state_dict(),
-        #         'optimizer': self.optimizer2.state_dict(),
-        #         'best_pred': self.best_pred2,
-        #         'best_epoch': self.best_epoch2,
-        #         'records': self.records2
+    
+        filename = os.path.join(self.checkpoint_dir, 'netG_last_ckp.pth')
+        print('===> Saving last checkpoint to [%s] ...]'%filename)
+        ckp = {
+            'epoch': epoch,
+            'state_dict': self.model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'best_pred': self.best_pred_netG,
+            'best_epoch': self.best_epoch_netG,
+            'records': self.records_netG
+        }
+
         torch.save(ckp, filename)
         if is_best:
             print('===> Saving best checkpoint to [%s] ...]' % filename.replace('last_ckp','best_ckp'))
@@ -398,42 +311,27 @@ class SRSolver(BaseSolver):
         """
         load or initialize network
         """
-        if (self.is_train and self.opt['solver']['pretrain_SR'] and self.opt['solver']['pretrain_netG']):
-            model_path_SR = self.opt['solver']['pretrainedSR_path']
-            model_path_netG = self.opt['solver']['pretrainednetG_path']
-            if model_path_SR is None: raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
-            if model_path_netG is None: raise ValueError("[Error] The 'pretrainednetG_path' does not declarate in *.json")
+        if (self.is_train and self.opt['solver']['pretrain']):
+            model_path = self.opt['solver']['pretrain']
+            if model_path is None: raise ValueError("[Error] The 'pretrain' does not declarate in *.json")
 
-            print('===> Loading SR module from from [%s] and netG module  from [%s]...' % model_path_SR % model_path_netG)
+            print('===> Loading model from [%s]...' % model_path)
             if self.is_train:
-                checkpoint_SR = torch.load(model_path_SR)
-                self.model.module.SR.load_state_dict(checkpoint_SR['state_dict'])
-                checkpoint_netG = torch.load(model_path_netG)
-                self.model.module.netG.load_state_dict(checkpoint_netG['state_dict'])
+                checkpoint = torch.load(model_path)
+                self.model.load_state_dict(checkpoint['state_dict'])
 
-                if self.opt['solver']['pretrain_SR'] == 'resume':
-                    self.cur_epoch_SR = checkpoint_SR['epoch'] + 1
+                if self.opt['solver']['pretrain'] == 'resume':
+                    self.cur_epoch = checkpoint['epoch'] + 1
                     # self.optimizer1.load_state_dict(checkpoint['optimizer'])
-                    self.best_pred_SR = checkpoint_SR['best_pred']
-                    self.best_epoch_SR = checkpoint_SR['best_epoch']
-                    self.records_SR = checkpoint_SR['records']
-                
-                if self.opt['solver']['pretrain_netG'] == 'resume':
-                    self.cur_epoch_netG = checkpoint_netG['epoch'] + 1
-                    self.optimizer2.load_state_dict(checkpoint_netG['optimizer'])
-                    self.best_pred_SR = checkpoint_netG['best_pred']
-                    self.best_epoch_SR = checkpoint_netG['best_epoch']
-                    self.records_SR = checkpoint_netG['records']
+                    self.best_pred = checkpoint['best_pred']
+                    self.best_epoch = checkpoint['best_epoch']
+                    self.records = checkpoint['records']
 
             else:
-                checkpoint_SR = torch.load(model_path_SR)
-                checkpoint_netG = torch.load(model_path_netG)
-                if 'state_dict' in checkpoint_SR.keys(): checkpoint_SR = checkpoint_SR['state_dict']
-                load_func = self.model.module.SR.load_state_dict
-                load_func(checkpoint_SR)
-                if 'state_dict' in checkpoint_netG.keys(): checkpoint_netG = checkpoint_netG['state_dict']
-                load_func = self.model.module.netG.load_state_dict
-                load_func(checkpoint_netG)
+                checkpoint = torch.load(model_path)
+                if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
+                load_func = self.model_SR.load_state_dict
+                load_func(checkpoint)
 
         if not self.is_train:
             SR_path = self.opt['solver']['pretrainedSR_path']
@@ -445,49 +343,36 @@ class SRSolver(BaseSolver):
         
             checkpoint = torch.load(SR_path)
             if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
-            load_func = self.model.module.SR.load_state_dict
+            load_func = self.model_SR.load_state_dict
             load_func(checkpoint)
 
             print('===> Loading netG module from [%s]...' % SR_path)
         
             checkpoint = torch.load(netG_path)
             if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
-            load_func = self.model.module.netG.load_state_dict
+            load_func = self.model.load_state_dict
             load_func(checkpoint)
 
 
-    def get_current_visual(self, need_np=True, need_HR=True, which=1):
+    def get_current_visual(self, need_np=True, need_HR=True):
         """
         return LR SR (HR) images
         """
         out_dict = OrderedDict()
-        if which ==1:
-            out_dict['LR'] = self.LR.data[0].float().cpu()
-            out_dict['SR'] = self.SR.data[0].float().cpu()
+        out_dict['LR'] = self.LR.data[0].float().cpu()
+        out_dict['SR'] = self.SR.data[0].cpu()
+        if need_np:  
+            out_dict['LR'] = util.Tensor2np([out_dict['LR']], self.opt['rgb_range'])[0]
+            out_dict['SR'] = util.Tensor2np([out_dict['SR']], -1)[0]                                                                    
+        if need_HR:
+            # print('Yes HR')
+            out_dict['k'] = self.k.data[0].cpu()
+            # print('k trong get current visual truoc khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
+            if need_np: out_dict['k'] = util.Tensor2np([out_dict['k']],
+                                                        -1)[0]
 
-            
-            if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
-                                                                            self.opt['rgb_range'])
-            if need_HR:
-                out_dict['HR'] = self.HR_blur.data[0].float().cpu()
-                if need_np: out_dict['HR'] = util.Tensor2np([out_dict['HR']],
-                                                            self.opt['rgb_range'])[0]
-            return out_dict
-        else:
-            out_dict['LR'] = self.LR.data[0].float().cpu()
-            out_dict['SR'] = self.SR.data[0].cpu()
-            if need_np:  
-                out_dict['LR'] = util.Tensor2np([out_dict['LR']], self.opt['rgb_range'])[0]
-                out_dict['SR'] = util.Tensor2np([out_dict['SR']], -1)[0]                                                                    
-            if need_HR:
-                # print('Yes HR')
-                out_dict['k'] = self.k.data[0].cpu()
-                # print('k trong get current visual truoc khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
-                if need_np: out_dict['k'] = util.Tensor2np([out_dict['k']],
-                                                            -1)[0]
-
-                # print('k trong get current visual sau khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
-            return out_dict
+            # print('k trong get current visual sau khi need np: {} {}'.format(out_dict['k'].mean(), out_dict['k'].max()))
+        return out_dict
 
 
 
@@ -497,7 +382,7 @@ class SRSolver(BaseSolver):
         """
         # if epoch % self.save_vis_step == 0:
         visuals_list = []
-        visuals = self.get_current_visual(need_np=False, which=2)
+        visuals = self.get_current_visual(need_np=False)
         print(type(visuals['k']))
         visuals_list.extend([util.quantize(visuals['k'].squeeze(0), self.opt['rgb_range']),
                                 util.quantize(visuals['SR'].squeeze(0), self.opt['rgb_range'])])
@@ -539,7 +424,7 @@ class SRSolver(BaseSolver):
     def get_current_learning_rate(self, module):
         if module == 1:
             return self.optimizer1.param_groups[0]['lr']
-        return self.optimizer2.param_groups[0]['lr']
+        return self.optimizer.param_groups[0]['lr']
 
     def update_learning_rate_SR(self, epoch):
         self.scheduler1.step(epoch)
@@ -549,55 +434,29 @@ class SRSolver(BaseSolver):
 
     def get_current_log_SR(self):
         log = OrderedDict()
-        log['epoch'] = self.cur_epoch_SR
-        log['best_pred'] = self.best_pred_SR
-        log['best_epoch'] = self.best_epoch_SR
-        log['records'] = self.records_SR
+        log['epoch'] = self.cur_epoch
+        log['best_pred'] = self.best_pred
+        log['best_epoch'] = self.best_epoch
+        log['records'] = self.records
         return log
 
     def set_current_log_SR(self, log):
-        self.cur_epoch_SR = log['epoch']
-        self.best_pred_SR = log['best_pred']
-        self.best_epoch_SR = log['best_epoch']
-        self.records_SR = log['records']
-
-    def get_current_log_netG(self):
-        log_netG = OrderedDict()
-        log_netG['epoch'] = self.cur_epoch_netG
-        log_netG['best_pred'] = self.best_pred_netG
-        log_netG['best_epoch'] = self.best_epoch_netG
-        log_netG['records'] = self.records_netG
-        return log_netG
-
-    def set_current_log_netG(self, log_netG):
-        self.cur_epoch_netG = log_netG['epoch']
-        self.best_pred_netG = log_netG['best_pred']
-        self.best_epoch_netG = log_netG['best_epoch']
-        self.records_netG = log_netG['records']
+        self.cur_epoch = log['epoch']
+        self.best_pred = log['best_pred']
+        self.best_epoch = log['best_epoch']
+        self.records = log['records']
 
     def save_current_log_SR(self):
         data = {}
-        for i in self.records_SR.keys():
-            data[i] = self.records_SR[i]
+        for i in self.records.keys():
+            data[i] = self.records[i]
         data_frame = pd.DataFrame(
             data,
-            index=range(1, self.cur_epoch_SR + 1)
-        )
-        data_frame.to_csv(os.path.join(self.records_dir, 'SR_train_records.csv'),
-                          index_label='epoch')
-
-    def save_current_log_netG(self):
-        data = {}
-        for i in self.records_netG.keys():
-            data[i] = self.records_netG[i]
-        print('self.cur_epoch_netG: {}'.format(self.cur_epoch_netG))
-        print('self.cur_epoch_SR: {}'.format(self.cur_epoch_SR))
-        data_frame = pd.DataFrame(
-            data,
-            index=range(1, (self.cur_epoch_netG -  (self.cur_epoch_SR-1))+ 1)
+            index=range(1, self.cur_epoch + 1)
         )
         data_frame.to_csv(os.path.join(self.records_dir, 'netG_train_records.csv'),
                           index_label='epoch')
+
 
     def print_network(self):
         """
