@@ -5,7 +5,7 @@ from models.dips import ImageDIP
 from models.backbones.edsr import EDSR
 from models.kernel_encoding.kernel_wizard import KernelExtractor
 from tqdm import tqdm
-
+import cv2
 from models.losses.hyper_laplacian_penalty import HyperLaplacianPenalty
 from models.losses.perceptual_loss import PerceptualLoss
 from models.losses.ssim_loss import SSIM
@@ -18,6 +18,7 @@ class BlindSR:
         self.opt = opt
         self.ssim_loss = SSIM().cuda()
         self.mse = nn.MSELoss().cuda()
+        self.l1 = nn.L1Loss().cuda()
         self.perceptual_loss = PerceptualLoss().cuda()
         self.laplace_penalty = HyperLaplacianPenalty(3, 0.66).cuda()
         self.dip = ImageDIP(opt["network"]["DIP"]).cuda()
@@ -31,6 +32,8 @@ class BlindSR:
     def reset_optimizers(self):
         self.x_optimizer = torch.optim.Adam(self.dip.parameters(), lr=self.opt["x_lr"])
         self.x_scheduler = StepLR(self.x_optimizer, step_size=self.opt["num_iters"] // 5, gamma=0.7)
+        # self.k_optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0001)
+        # self.k_scheduler = StepLR(self.k_optimizer, step_size=self.opt["num_iters"] // 5, gamma=0.7)
 
     def warmup(self, warmup_x):
         # Input vector of DIPs is sampled from N(z, I)
@@ -77,38 +80,41 @@ class BlindSR:
         print("Deblurring")
         reg_noise_std = self.opt["reg_noise_std"]
         for step in tqdm(range(self.opt["num_iters"])):
-            dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
+            # dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
 
             self.x_optimizer.zero_grad()
             self.x_scheduler.step()
 
-            hr_pred = self.dip(dip_zx_rand)
+            hr_pred = self.dip(self.random_x)
             # with torch.no_grad():
             k_pred, blur_pred = self.netG(hr_pred, hr_blur)
+            
             # print(k_pred.shape)
             # print(blur_pred.shape)
 
             lr_pred = downsample(blur_pred)
 
             if step < self.opt["num_iters"] // 2:
-                total_loss = 6e-1 * self.perceptual_loss(lr_pred, lr)
+                total_loss = 6e-1 * self.l1(lr_pred, lr)
                 total_loss += 1 - self.ssim_loss(lr_pred, lr)
                 total_loss += 5e-5 * torch.norm(k_pred)
                 total_loss += 2e-2 * self.laplace_penalty(hr_pred)
             else:
-                total_loss = self.perceptual_loss(lr_pred, lr)
+                total_loss = self.l1(lr_pred, lr)
                 total_loss += 5e-2 * self.laplace_penalty(hr_pred)
                 total_loss += 5e-4 * torch.norm(k_pred)
 
             total_loss.backward()
 
             self.x_optimizer.step()
+            # self.k_optimizer.step()
 
             # debugging
             # if step % 100 == 0:
             #     print(torch.norm(k))
             #     print(f"{self.k_optimizer.param_groups[0]['lr']:.3e}")
-
+        img_blur = util.tensor2img(blur_pred.detach())
+        cv2.imwrite('./hr_blur.png', img_blur)
         return util.tensor2img(hr_pred.detach())
 
     def load(self):
