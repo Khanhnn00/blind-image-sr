@@ -360,7 +360,7 @@ IDK(
     (enc1): EncBlock(
       (max): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
       (model): Sequential(
-        (0): Conv2d(6, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         (1): ResnetBlock(
           (conv_block): Sequential(
             (0): ReflectionPad2d((1, 1, 1, 1))
@@ -857,7 +857,7 @@ IDK(
       (enc1): EncBlock(
         (max): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
         (model): Sequential(
-          (0): Conv2d(6, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+          (0): Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
           (1): ResnetBlock(
             (conv_block): Sequential(
               (0): ReflectionPad2d((1, 1, 1, 1))
@@ -994,4 +994,4 @@ IDK(
     )
   )
 )
-Network structure: [DataParallel - IDK], with parameters: [9,281,935]
+Network structure: [DataParallel - IDK], with parameters: [9,280,207]

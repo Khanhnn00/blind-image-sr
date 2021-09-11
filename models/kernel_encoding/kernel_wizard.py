@@ -89,10 +89,10 @@ class KernelExtractor(nn.Module):
         else:
             use_bias = norm_layer == nn.InstanceNorm2d
 
-        input_nc = opt['in_channels'] * 2 if self.use_sharp else opt['in_channels']
+        self.input_nc = opt['in_channels'] * 2 if self.use_sharp else opt['in_channels']
         output_nc = opt['out_channels'] * 2 if self.use_vae else opt['out_channels']
         
-        self.enc1 = EncBlock(input_nc, nf, padding_type=padding_type, norm_layer=norm_layer, \
+        self.enc1 = EncBlock(self.input_nc, nf, padding_type=padding_type, norm_layer=norm_layer, \
             use_bias=use_bias, use_dropout=use_dropout)
         self.enc2 = EncBlock(nf, nf*2, padding_type=padding_type, norm_layer=norm_layer, \
             use_bias=use_bias, use_dropout=use_dropout)
@@ -117,7 +117,10 @@ class KernelExtractor(nn.Module):
         self.conv2 = nn.Sequential(*self.conv2)
 
     def forward(self, sharp, blur):
-        inp = torch.cat((sharp, blur), dim=1)
+        if self.input_nc == 6:
+            inp = torch.cat((sharp, blur), dim=1)
+        else:
+            inp = blur
         # print(inp.shape)
         x1_, x1 = self.enc1(inp)
         x2_, x2 = self.enc2(x1)

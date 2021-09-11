@@ -51,12 +51,12 @@ class SRSolver(BaseSolver):
                 raise NotImplementedError('Loss type [%s] is not implemented!'%loss_type)
 
             
-            self.criterion_pix_k = nn.MSELoss()
-            self.criterion_pix_netG = nn.MSELoss()
+            self.criterion_pix_k = nn.L1Loss()
+            self.criterion_pix_netG = nn.L1Loss()
 
 
             if self.use_gpu:
-                self.criterion_pix = self.criterion_pix.cuda()
+                self.criterion_pix_SR = self.criterion_pix_SR.cuda()
                 self.criterion_pix_k = self.criterion_pix_k.cuda()
                 self.criterion_pix_netG = self.criterion_pix_netG.cuda()
 
@@ -154,7 +154,7 @@ class SRSolver(BaseSolver):
                 split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
                 output = self.model.module.SR(split_LR)
-                loss_sbatch = self.criterion_pix(output, split_HR_blur)
+                loss_sbatch = self.criterion_pix_SR(output, split_HR_blur)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -186,10 +186,12 @@ class SRSolver(BaseSolver):
                 split_LR = self.LR.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_k = self.k.narrow(0, i*sub_batch_size, sub_batch_size)
                 split_HR = self.HR.narrow(0, i*sub_batch_size, sub_batch_size)
+                split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
                 with torch.no_grad():
                     HR_blur = self.model.module.SR(split_LR)
                 pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
-                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(HR_blur, pred_blur)
+                # pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
+                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(pred_blur, HR_blur)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -218,18 +220,24 @@ class SRSolver(BaseSolver):
 
             self.model.module.SR.train()
             if self.is_train:
-                loss_pix = self.criterion_pix(self.SR, self.HR_blur)
+                loss_pix = self.criterion_pix_SR(self.SR, self.HR_blur)
                 return loss_pix.item()
         else:
             self.model.module.netG.eval()
             with torch.no_grad():
                 pred_k, pred_blur = self.model.module.netG(self.HR, self.HR_blur)
+                # print(pred_blur.max())
                 self.SR = pred_k
+                # print(pred_blur.shape)
+                self.HR_blur_pred_crop = pred_blur[:,:,:224,:224]
+                self.HR_blur_crop = self.HR_blur[:,:,:224,:224]
+                # print(type(self.HR_blur_pred_crop))
+                # print(self.HR_blur_pred_crop.shape)
                 self.HR_blur_pred = pred_blur
                 # print(self.SR.shape)
             self.model.module.netG.train()
             if self.is_train:
-                loss_pix = self.criterion_pix(self.SR, self.k) + self.criterion_pix(self.HR_blur_pred, self.HR_blur)
+                loss_pix = self.criterion_pix_k(self.SR, self.k) + self.criterion_pix_netG(self.HR_blur_pred, self.HR_blur)
                 return loss_pix.item()
 
             
@@ -398,18 +406,22 @@ class SRSolver(BaseSolver):
         """
         load or initialize network
         """
-        if (self.is_train and self.opt['solver']['pretrain_SR'] and self.opt['solver']['pretrain_netG']):
+        if (self.is_train and self.opt['solver']['pretrain_SR']):
             model_path_SR = self.opt['solver']['pretrainedSR_path']
-            model_path_netG = self.opt['solver']['pretrainednetG_path']
+            if self.opt['solver']['pretrain_netG']:
+                model_path_netG = self.opt['solver']['pretrainednetG_path']
+                if model_path_netG is None: raise ValueError("[Error] The 'pretrainednetG_path' does not declarate in *.json")
             if model_path_SR is None: raise ValueError("[Error] The 'pretrainedSR_path' does not declarate in *.json")
-            if model_path_netG is None: raise ValueError("[Error] The 'pretrainednetG_path' does not declarate in *.json")
-
-            print('===> Loading SR module from from [%s] and netG module  from [%s]...' % model_path_SR % model_path_netG)
+            
+            print('===> Loading SR module from from {}...'.format( model_path_SR))
+            if self.opt['solver']['pretrain_netG']:
+                print('===> Loading netG module  from {}...'.format(model_path_netG))
             if self.is_train:
                 checkpoint_SR = torch.load(model_path_SR)
                 self.model.module.SR.load_state_dict(checkpoint_SR['state_dict'])
-                checkpoint_netG = torch.load(model_path_netG)
-                self.model.module.netG.load_state_dict(checkpoint_netG['state_dict'])
+                if self.opt['solver']['pretrain_netG']:
+                    checkpoint_netG = torch.load(model_path_netG)
+                    self.model.module.netG.load_state_dict(checkpoint_netG['state_dict'])
 
                 if self.opt['solver']['pretrain_SR'] == 'resume':
                     self.cur_epoch_SR = checkpoint_SR['epoch'] + 1
@@ -476,9 +488,15 @@ class SRSolver(BaseSolver):
         else:
             out_dict['LR'] = self.LR.data[0].float().cpu()
             out_dict['SR'] = self.SR.data[0].cpu()
+            out_dict['HR_pred'] = self.HR_blur_pred_crop.data[0].float().cpu()
+            out_dict['HR_blur'] = self.HR_blur_crop.data[0].float().cpu()
             if need_np:  
                 out_dict['LR'] = util.Tensor2np([out_dict['LR']], self.opt['rgb_range'])[0]
-                out_dict['SR'] = util.Tensor2np([out_dict['SR']], -1)[0]                                                                    
+                out_dict['SR'] = util.Tensor2np([out_dict['SR']], -1)[0]
+                out_dict['HR_pred'] = util.Tensor2np([out_dict['HR_pred']], self.opt['rgb_range'])[0]
+                out_dict['HR_blur'] = util.Tensor2np([out_dict['HR_blur']], self.opt['rgb_range'])[0]
+                
+                # print(out_dict['HR_pred'].max(), out_dict['HR_pred'].min())                                                               
             if need_HR:
                 # print('Yes HR')
                 out_dict['k'] = self.k.data[0].cpu()
@@ -514,7 +532,7 @@ class SRSolver(BaseSolver):
                   visuals['SR'])
 
 
-    def save_img(self, epoch, iter, gt, est):
+    def save_img(self, epoch, iter, gt, est, hr_blur, hr_blur_pred):
         
         """
         save visual results for comparison
@@ -523,13 +541,21 @@ class SRSolver(BaseSolver):
         
         # print(visual_images.shape)
         print('save o: {}'.format(os.path.join(self.visual_dir, 'epoch_%d_img_%d.png' % (epoch, iter + 1))))
-        print(gt.shape)
+        # print(gt.shape)
+        # print(gt.mean())  0.0044
         gt_max, _ = gt.flatten(2).max(2, keepdim=True)
         gt = gt / gt_max.unsqueeze(3)
+        # print(est.mean())
         est_max, _ = est.flatten(2).max(2, keepdim=True)
         est = est / est_max.unsqueeze(3)
+        print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
+        print(hr_blur_pred.mean(), hr_blur_pred.max(), hr_blur_pred.min())
+        # hr_blur_max, _ = hr_blur.flatten(2).max(2, keepdim=True)
+        # hr_blur = hr_blur / hr_blur_max.unsqueeze(3)
         save_image(gt, os.path.join(self.visual_dir, 'GT_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
         save_image(est, os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
+        save_image(hr_blur, os.path.join(self.visual_dir, 'HR_blur_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
+        save_image(hr_blur_pred, os.path.join(self.visual_dir, 'HR_blur_pred_epoch_%d_img_%d.png' % (epoch, iter + 1)), nrow=10, normalize=True)
         # misc.imsave(os.path.join(self.visual_dir, 'k_epoch_%d_img_%d.png' % (epoch, iter + 1)),
         #            visuals['k'])
         # misc.imsave(os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)),
@@ -594,7 +620,7 @@ class SRSolver(BaseSolver):
         print('self.cur_epoch_SR: {}'.format(self.cur_epoch_SR))
         data_frame = pd.DataFrame(
             data,
-            index=range(1, (self.cur_epoch_netG -  (self.cur_epoch_SR-1))+ 1)
+            index=range(1, self.cur_epoch_netG + 1)
         )
         data_frame.to_csv(os.path.join(self.records_dir, 'netG_train_records.csv'),
                           index_label='epoch')

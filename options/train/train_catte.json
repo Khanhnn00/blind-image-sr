@@ -47,7 +47,7 @@
     },
 
     "network": {
-        "which_model": "IDK",
+        "which_model": "catte",
         "SR":{
             "num_features": 64,
             "in_channels": 3,
