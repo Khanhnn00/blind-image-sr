@@ -88,33 +88,36 @@ class Upsampler(nn.Sequential):
         super(Upsampler, self).__init__(*m)
 
 class EDSR(nn.Module):
-    def __init__(self, in_channels, out_channels, num_features, num_blocks, res_scale, upscale_factor, conv=default_conv):
+    def __init__(self, opt, conv=default_conv):
         super(EDSR, self).__init__()
 
-        n_resblocks = num_blocks
-        n_feats = num_features
+        self.n_resblocks = opt["num_blocks"]
+        self.n_feats = opt["num_features"]
         kernel_size = 3 
-        scale = upscale_factor
+        res_scale= opt["res_scale"]
+        self.scale = opt["upscale_factor"]
+        self.in_channels = opt["in_channels"]
+        self.out_channels = opt["out_channels"]
         act = nn.ReLU(True)
         self.sub_mean = MeanShift()
         self.add_mean = MeanShift(sign=1)
         # self.kernel = GaussianSmoothing(3, 7, 1.6)   #channel, kernel_size and sigma value
 
         # define head module
-        m_head = [conv(in_channels, n_feats, kernel_size)]
+        m_head = [conv(self.in_channels, self.n_feats, kernel_size)]
 
         # define body module
         m_body = [
             ResBlock(
-                conv, n_feats, kernel_size, act=act, res_scale=res_scale
-            ) for _ in range(n_resblocks)
+                conv, self.n_feats, kernel_size, act=act, res_scale=res_scale
+            ) for _ in range(self.n_resblocks)
         ]
-        m_body.append(conv(n_feats, n_feats, kernel_size))
+        m_body.append(conv(self.n_feats, self.n_feats, kernel_size))
 
         # define tail module
         m_tail = [
-            Upsampler(conv, scale, n_feats, act=False),
-            conv(n_feats, out_channels, kernel_size)
+            Upsampler(conv, self.scale, self.n_feats, act=False),
+            conv(self.n_feats, self.out_channels, kernel_size)
         ]
 
         self.head = nn.Sequential(*m_head)

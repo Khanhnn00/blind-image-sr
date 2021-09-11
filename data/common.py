@@ -162,6 +162,8 @@ def k2tensor(k):
     return tensor
 
 def conv(inp, k, padding):
+    #inp: B C H W
+    #k: B 1 15 15
     return F.conv2d(inp, k, padding=padding)
 
 def downsample(img):

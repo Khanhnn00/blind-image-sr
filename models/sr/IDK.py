@@ -17,8 +17,7 @@ class IDK(nn.Module):
         # define network and load pretrained models
         model = []
         self.DIP = ImageDIP(opt["network"]["DIP"])
-        self.SR = edsr.EDSR(opt["network"]["SR"]["in_channels"], opt["network"]["SR"]["out_channels"], opt["network"]["SR"]["num_features"], opt["network"]["SR"]["num_blocks"]\
-            , opt["network"]["SR"]["res_scale"], opt["network"]["SR"]["upscale_factor"])
+        self.SR = edsr.EDSR(opt["network"]["SR"])
         self.netG = KernelExtractor(opt["network"]["KernelExtractor"])
         self.is_train = opt["is_train"]
 

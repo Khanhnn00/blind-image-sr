@@ -3,7 +3,9 @@ import argparse
 import cv2
 import yaml
 from models.deblurring.joint_deblur import JointDeblur
+import os
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 def main():
     parser = argparse.ArgumentParser(description="Kernel extractor testing")
