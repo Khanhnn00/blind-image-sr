@@ -113,6 +113,7 @@ class KernelExtractor(nn.Module):
             nn.Conv2d(nf, nf, kernel_size=3, padding=1, stride=1),
             nn.ReLU(True),
             nn.Conv2d(nf, 19*19, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(True),
         ]
         self.conv2 = nn.Sequential(*self.conv2)
 

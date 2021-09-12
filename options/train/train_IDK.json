@@ -24,7 +24,7 @@
             "phase": "train",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 255
+            "rgb_range": 1
         },
         "val_SR": {
             "mode": "LRHR",
@@ -33,7 +33,7 @@
             "phase": "test",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 255
+            "rgb_range": 1
         },
         "val_kernel": {
             "mode": "LRHR_kernel",
@@ -42,7 +42,7 @@
             "phase": "test",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 255
+            "rgb_range": 1
         }
     },
 

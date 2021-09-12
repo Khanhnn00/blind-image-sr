@@ -67,18 +67,10 @@ class BlindSR:
         print("Step Super-resolution")
         with torch.no_grad():
             hr_blur = self._overlap_crop_forward(lr, n_GPUs=1)
-        print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
+        # print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
         img_blur = hr_blur.data[0].float().cpu()
-        print('img_blur.shape: {}'.format(img_blur.shape))
         img_blur = util.Tensor2np([img_blur], 255)[0]
         cv2.imwrite('./hr_blur.png', cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
-        print(hr_blur.max(), hr_blur.min())
-        # hr_blur = util.quantize(hr_blur, 255)
-        # print('After quantizie: {}'.format(hr_blur.shape))
-        # print(hr_blur.max(), hr_blur.min())
-
-        # img_blur = hr_blur.detach().squeeze(0).permute(1,2,0).cpu().numpy().astype(np.uint8)
-        # cv2.imwrite('./hr_blur_.png', img_blur)
 
         self.prepare_DIP(size)
         self.reset_optimizers()
@@ -103,16 +95,17 @@ class BlindSR:
             # print(blur_pred.shape)
 
             lr_pred = downsample(blur_pred)
-            print('lr_pred.max(): {}'.format(lr_pred.max(), lr_pred.min()))
-            print('hr_pred.max(): {}'.format(hr_pred.max(), hr_pred.min()))
+            tmp =util.quantize_dip(hr_pred)
+            # print('lr_pred.max(): {}, {}'.format(lr_pred.max(), lr_pred.mean()))
+            # print('hr_pred.max(): {}, {}'.format(tmp.max(), tmp.mean()))
 
             if step < self.opt["num_iters"] // 2:
-                total_loss = 6e-1 * self.perceptual_loss(lr_pred, lr)
+                total_loss = 6e-1 * self.l1(lr_pred, lr)
                 total_loss += 1 - self.ssim_loss(lr_pred, lr)
                 total_loss += 5e-5 * torch.norm(k_pred)
                 total_loss += 2e-2 * self.laplace_penalty(hr_pred)
             else:
-                total_loss = self.perceptual_loss(lr_pred, lr)
+                total_loss = self.l1(lr_pred, lr)
                 total_loss += 5e-2 * self.laplace_penalty(hr_pred)
                 total_loss += 5e-4 * torch.norm(k_pred)
 
@@ -128,7 +121,7 @@ class BlindSR:
         
         img_lr_pred = util.Tensor2np([lr_pred.squeeze().detach().cpu().float()], 255)[0]
         cv2.imwrite('./lr_pred.png', img_lr_pred)
-        return util.Tensor2np([hr_pred.squeeze(0).detach().cpu().float()], 255)[0]
+        return util.Tensor2np([tmp.squeeze(0).detach().cpu().float()], 255)[0]
 
     def load(self):
         """
