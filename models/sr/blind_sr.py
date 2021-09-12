@@ -4,6 +4,7 @@ import utils.util as util
 from models.dips import ImageDIP
 from models.backbones.edsr import EDSR
 from models.kernel_encoding.kernel_wizard import KernelExtractor
+from models.sr.IDK import IDK
 from tqdm import tqdm
 import cv2
 from models.losses.hyper_laplacian_penalty import HyperLaplacianPenalty
@@ -11,6 +12,7 @@ from models.losses.perceptual_loss import PerceptualLoss
 from models.losses.ssim_loss import SSIM
 from torch.optim.lr_scheduler import StepLR
 from data.common import downsample, conv
+import numpy as np
 
 
 class BlindSR:
@@ -25,6 +27,7 @@ class BlindSR:
         self.SR = EDSR(opt["network"]["SR"]).cuda()
         self.netG = KernelExtractor(opt["network"]["KernelExtractor"]).cuda()
         self.load()
+        self.scale=self.opt["scale"]
 
     def prepare_DIP(self, size):
         self.random_x = util.get_noise(8, "noise", size).cuda()
@@ -43,32 +46,39 @@ class BlindSR:
 
         for step in tqdm(range(self.opt["num_warmup_iters"])):
             self.x_optimizer.zero_grad()
-            dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
-            x = self.dip(dip_zx_rand)
+            # dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
+            x = self.dip(self.random_x)
 
             loss = self.mse(x, warmup_x)
             loss.backward()
             self.x_optimizer.step()
 
-    def lr_from_hr(self, hr, k):
-        hr_blur = conv(hr.permute(1,0,2,3), k, padding=7)
-        lr = downsample(hr_blur)
-        return lr
-
-
-    def SR_step(self, lr, hr):
+    def SR_step(self, lr):
         """Enhance resolution
         Args:
             lr: Low-resolution image
         """
         # lr = util.img2tensor(lr).unsqueeze(0).cuda()
         # hr = util.img2
-        print(lr.shape, hr.shape)
-        size = [hr.shape[2], hr.shape[3]]
+        self.SR.eval()
+        print(lr.shape)
+        size = [lr.shape[2]*self.opt["scale"], lr.shape[3]*self.opt["scale"]]
 
         print("Step Super-resolution")
         with torch.no_grad():
-            hr_blur = self.SR(lr)
+            hr_blur = self._overlap_crop_forward(lr, n_GPUs=1)
+        print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
+        img_blur = hr_blur.data[0].float().cpu()
+        print('img_blur.shape: {}'.format(img_blur.shape))
+        img_blur = util.Tensor2np([img_blur], 255)[0]
+        cv2.imwrite('./hr_blur.png', cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
+        print(hr_blur.max(), hr_blur.min())
+        # hr_blur = util.quantize(hr_blur, 255)
+        # print('After quantizie: {}'.format(hr_blur.shape))
+        # print(hr_blur.max(), hr_blur.min())
+
+        # img_blur = hr_blur.detach().squeeze(0).permute(1,2,0).cpu().numpy().astype(np.uint8)
+        # cv2.imwrite('./hr_blur_.png', img_blur)
 
         self.prepare_DIP(size)
         self.reset_optimizers()
@@ -93,14 +103,16 @@ class BlindSR:
             # print(blur_pred.shape)
 
             lr_pred = downsample(blur_pred)
+            print('lr_pred.max(): {}'.format(lr_pred.max(), lr_pred.min()))
+            print('hr_pred.max(): {}'.format(hr_pred.max(), hr_pred.min()))
 
             if step < self.opt["num_iters"] // 2:
-                total_loss = 6e-1 * self.l1(lr_pred, lr)
+                total_loss = 6e-1 * self.perceptual_loss(lr_pred, lr)
                 total_loss += 1 - self.ssim_loss(lr_pred, lr)
                 total_loss += 5e-5 * torch.norm(k_pred)
                 total_loss += 2e-2 * self.laplace_penalty(hr_pred)
             else:
-                total_loss = self.l1(lr_pred, lr)
+                total_loss = self.perceptual_loss(lr_pred, lr)
                 total_loss += 5e-2 * self.laplace_penalty(hr_pred)
                 total_loss += 5e-4 * torch.norm(k_pred)
 
@@ -113,9 +125,10 @@ class BlindSR:
             # if step % 100 == 0:
             #     print(torch.norm(k))
             #     print(f"{self.k_optimizer.param_groups[0]['lr']:.3e}")
-        img_blur = util.tensor2img(blur_pred.detach())
-        cv2.imwrite('./hr_blur.png', img_blur)
-        return util.tensor2img(hr_pred.detach())
+        
+        img_lr_pred = util.Tensor2np([lr_pred.squeeze().detach().cpu().float()], 255)[0]
+        cv2.imwrite('./lr_pred.png', img_lr_pred)
+        return util.Tensor2np([hr_pred.squeeze(0).detach().cpu().float()], 255)[0]
 
     def load(self):
         """
@@ -129,7 +142,11 @@ class BlindSR:
         print('===> Loading SR module from [%s]...' % SR_path)
     
         checkpoint = torch.load(SR_path)
-        if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
+        # print(checkpoint)
+        if 'state_dict' in checkpoint.keys(): 
+            print("YES")
+            checkpoint = checkpoint['state_dict']
+        
         load_func = self.SR.load_state_dict
         load_func(checkpoint)
 
@@ -137,6 +154,70 @@ class BlindSR:
     
         checkpoint = torch.load(netG_path)
         if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
-        load_func = self.netG.load_state_dict
-        load_func(checkpoint)
+        # load_func = self.netG.load_state_dict
+        # load_func(checkpoint)
 
+    def _overlap_crop_forward(self, x, shave=10, min_size=100000, bic=None, n_GPUs=4):
+        """
+        chop for less memory consumption during test
+        """
+        n_GPUs = n_GPUs
+        scale = self.scale
+        b, c, h, w = x.size()
+        h_half, w_half = h // 2, w // 2
+        h_size, w_size = h_half + shave, w_half + shave
+        lr_list = [
+            x[:, :, 0:h_size, 0:w_size],
+            x[:, :, 0:h_size, (w - w_size):w],
+            x[:, :, (h - h_size):h, 0:w_size],
+            x[:, :, (h - h_size):h, (w - w_size):w]]
+
+        if bic is not None:
+            bic_h_size = h_size*scale
+            bic_w_size = w_size*scale
+            bic_h = h*scale
+            bic_w = w*scale
+            
+            bic_list = [
+                bic[:, :, 0:bic_h_size, 0:bic_w_size],
+                bic[:, :, 0:bic_h_size, (bic_w - bic_w_size):bic_w],
+                bic[:, :, (bic_h - bic_h_size):bic_h, 0:bic_w_size],
+                bic[:, :, (bic_h - bic_h_size):bic_h, (bic_w - bic_w_size):bic_w]]
+
+        if w_size * h_size < min_size:
+            sr_list = []
+            for i in range(0, 4, n_GPUs):
+                lr_batch = torch.cat(lr_list[i:(i + n_GPUs)], dim=0)
+                if bic is not None:
+                    bic_batch = torch.cat(bic_list[i:(i + n_GPUs)], dim=0)
+
+                sr_batch_temp = self.SR(lr_batch)
+
+                if isinstance(sr_batch_temp, list):
+                    sr_batch = sr_batch_temp[-1]
+                else:
+                    sr_batch = sr_batch_temp
+
+                sr_list.extend(sr_batch.chunk(n_GPUs, dim=0))
+        else:
+            sr_list = [
+                self._overlap_crop_forward(patch, shave=shave, min_size=min_size) \
+                for patch in lr_list
+                ]
+
+        h, w = scale * h, scale * w
+        h_half, w_half = scale * h_half, scale * w_half
+        h_size, w_size = scale * h_size, scale * w_size
+        shave *= scale
+
+        output = x.new(b, c, h, w)
+        output[:, :, 0:h_half, 0:w_half] \
+            = sr_list[0][:, :, 0:h_half, 0:w_half]
+        output[:, :, 0:h_half, w_half:w] \
+            = sr_list[1][:, :, 0:h_half, (w_size - w + w_half):w_size]
+        output[:, :, h_half:h, 0:w_half] \
+            = sr_list[2][:, :, (h_size - h + h_half):h_size, 0:w_half]
+        output[:, :, h_half:h, w_half:w] \
+            = sr_list[3][:, :, (h_size - h + h_half):h_size, (w_size - w + w_half):w_size]
+
+        return output

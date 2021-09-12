@@ -2,17 +2,18 @@
 from collections import OrderedDict
 import pandas as pd
 import scipy.misc as misc
-
+import cv2
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision.utils as thutil
-
+import math
 from models import create_model
 from .base_solver import BaseSolver
 from models import init_weights
 from utils import util
-
+from torchvision.utils import make_grid
+import numpy as np
 from torchvision.utils import save_image
 
 class SRSolver(BaseSolver):
@@ -216,7 +217,9 @@ class SRSolver(BaseSolver):
                 forward_func = self._overlap_crop_forward if self.use_chop else self.model.forward
                 SR = forward_func(self.LR, n_GPUs=2)
 
-                self.SR = SR
+            self.SR = SR
+            self.SR_crop = SR[:,:,:224,:224]
+            self.HR_crop = self.HR_blur[:,:,:224,:224]
 
             self.model.module.SR.train()
             if self.is_train:
@@ -476,14 +479,17 @@ class SRSolver(BaseSolver):
         if which ==1:
             out_dict['LR'] = self.LR.data[0].float().cpu()
             out_dict['SR'] = self.SR.data[0].float().cpu()
-
+            out_dict['SR_crop'] = self.SR_crop.data[0].float().cpu()
+            out_dict['HR_crop'] = self.HR_crop.data[0].float().cpu()
+            # print(out_dict['LR'].shape, out_dict['SR'].shape, out_dict['SR_crop'].shape, out_dict['HR_crop'].shape)
             
-            if need_np:  out_dict['LR'], out_dict['SR'] = util.Tensor2np([out_dict['LR'], out_dict['SR']],
+            if need_np:  out_dict['LR'], out_dict['SR'], out_dict['SR_crop'] = util.Tensor2np([out_dict['LR'], out_dict['SR'], out_dict['SR_crop']],
                                                                             self.opt['rgb_range'])
             if need_HR:
                 out_dict['HR'] = self.HR_blur.data[0].float().cpu()
-                if need_np: out_dict['HR'] = util.Tensor2np([out_dict['HR']],
-                                                            self.opt['rgb_range'])[0]
+                out_dict['HR_crop'] = self.HR_crop.data[0].float().cpu()
+                if need_np: out_dict['HR'], out_dict['HR_crop'] = util.Tensor2np([out_dict['HR'], out_dict['HR_crop']],
+                                                            self.opt['rgb_range'])
             return out_dict
         else:
             out_dict['LR'] = self.LR.data[0].float().cpu()
@@ -509,27 +515,18 @@ class SRSolver(BaseSolver):
 
 
 
-    def save_current_visual(self, epoch, iter):
+    def save_current_visual(self, epoch, iter, hr_blur, hr_blur_pred):
         """
         save visual results for comparison
         """
-        # if epoch % self.save_vis_step == 0:
-        visuals_list = []
-        visuals = self.get_current_visual(need_np=False, which=2)
-        print(type(visuals['k']))
-        visuals_list.extend([util.quantize(visuals['k'].squeeze(0), self.opt['rgb_range']),
-                                util.quantize(visuals['SR'].squeeze(0), self.opt['rgb_range'])])
-        # visual_images = torch.stack(visuals_list)
-        # visual_images = thutil.make_grid(visual_images, nrow=2, padding=5)
-        # visual_images = visual_images.byte().permute(1, 2, 0).numpy()
-        visuals['k'] = visuals['k'].squeeze(0).numpy()
-        visuals['SR'] = visuals['SR'].squeeze(0).numpy()
-        # print(visual_images.shape)
-        print('save o: {}'.format(os.path.join(self.visual_dir, 'epoch_%d_img_%d.png' % (epoch, iter + 1))))
-        misc.imsave(os.path.join(self.visual_dir, 'k_epoch_%d_img_%d.png' % (epoch, iter + 1)),
-                   visuals['k'])
-        misc.imsave(os.path.join(self.visual_dir, 'SR_epoch_%d_img_%d.png' % (epoch, iter + 1)),
-                  visuals['SR'])
+        n_img = len(hr_blur)
+        hr_blur = make_grid(hr_blur, nrow=int(math.sqrt(n_img)), normalize=False).numpy()
+        hr_blur = np.transpose(hr_blur[[2, 1, 0], :, :], (1, 2, 0))
+        hr_blur_pred = make_grid(hr_blur_pred, nrow=int(math.sqrt(n_img)), normalize=False).numpy()
+        hr_blur_pred = np.transpose(hr_blur_pred[[2, 1, 0], :, :], (1, 2, 0))
+        print('Save current visual')
+        cv2.imwrite(os.path.join(self.visual_dir, './train_GT_blur.png'), hr_blur)
+        cv2.imwrite(os.path.join(self.visual_dir, './train_GT_blur_pred.png'), hr_blur_pred)
 
 
     def save_img(self, epoch, iter, gt, est, hr_blur, hr_blur_pred):

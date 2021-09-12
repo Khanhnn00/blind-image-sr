@@ -55,34 +55,52 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             visuals = solver.get_current_visual(which=which)
             if which ==1:
                 psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
+                hr_blur_pred.append(np.expand_dims(visuals['SR_crop'], axis=0).transpose(0,3,1,2))
+                hr_blur.append(np.expand_dims(visuals['HR_crop'], axis=0).transpose(0,3,1,2))
+                
             else:
                 # print(type(visuals['k']), visuals['k'].shape)
                 # print(visuals['k'].max(), visuals['k'].mean())
-                visual_gt.extend(np.expand_dims(visuals['k'], axis=0).transpose(0,3,1,2))
-                visual.extend(np.expand_dims(visuals['SR'], axis=0).transpose(0,3,1,2))
-                hr_blur_pred.extend(np.expand_dims(visuals['HR_pred'], axis=0).transpose(0,3,1,2))
-                hr_blur.extend(np.expand_dims(visuals['HR_blur'], axis=0).transpose(0,3,1,2))
+                visual_gt.append(np.expand_dims(visuals['k'], axis=0).transpose(0,3,1,2))
+                visual.append(np.expand_dims(visuals['SR'], axis=0).transpose(0,3,1,2))
+                hr_blur_pred.append(np.expand_dims(visuals['HR_pred'], axis=0).transpose(0,3,1,2))
+                hr_blur.append(np.expand_dims(visuals['HR_blur'], axis=0).transpose(0,3,1,2))
                 psnr, ssim = skimage.metrics.peak_signal_noise_ratio(visuals['k'], visuals['SR']),\
                                 skimage.metrics.structural_similarity(visuals['k'], visuals['SR'], multichannel=True)
                 # print(psnr, ssim)
+                
             psnr_list.append(psnr)
             ssim_list.append(ssim)
-        visual_gt = np.concatenate(visual_gt, axis=0)
-        hr_blur = np.concatenate(hr_blur, axis=0)
-        hr_blur_pred = np.concatenate(hr_blur_pred, axis=0)
-        # print(visual_gt.shape)
-        visual = np.concatenate(visual, axis=0)
-        # print(visual.shape)
-        # print(hr_blur.shape)
-        visual = torch.from_numpy(visual).unsqueeze(1)
-        visual_gt = torch.from_numpy(visual_gt).unsqueeze(1)
-        hr_blur = torch.from_numpy(hr_blur).unsqueeze(1).float()
-        hr_blur_pred = torch.from_numpy(hr_blur_pred).unsqueeze(1).float()
-        hr_blur = hr_blur[:100]
-        hr_blur_pred = hr_blur_pred[:100]
-    
-        if opt["save_image"]:
-            solver.save_img(epoch, iter, visual_gt, visual, hr_blur, hr_blur_pred)
+
+        if which ==1:
+            hr_blur = np.concatenate(hr_blur, axis=0)
+            hr_blur_pred = np.concatenate(hr_blur_pred, axis=0)
+            # print(hr_blur.shape, hr_blur_pred.shape)
+            hr_blur = hr_blur[:100,:,:,:]
+            hr_blur_pred = hr_blur_pred[:100,:,:,:]
+            hr_blur = torch.from_numpy(hr_blur)
+            hr_blur_pred = torch.from_numpy(hr_blur_pred)
+            # print('Before feeding')
+            # print(hr_blur.shape, hr_blur_pred.shape)
+            if opt["save_image"]:
+                solver.save_current_visual(epoch, iter, hr_blur, hr_blur_pred)
+        else:
+            visual_gt = np.concatenate(visual_gt, axis=0)
+            hr_blur = np.concatenate(hr_blur, axis=0)
+            hr_blur_pred = np.concatenate(hr_blur_pred, axis=0)
+            # print(visual_gt.shape)
+            visual = np.concatenate(visual, axis=0)
+            # print(visual.shape)
+            # print(hr_blur.shape)
+            visual = torch.from_numpy(visual)
+            visual_gt = torch.from_numpy(visual_gt)
+            hr_blur = torch.from_numpy(hr_blur).float()
+            hr_blur_pred = torch.from_numpy(hr_blur_pred).float()
+            hr_blur = hr_blur[:100,:,:,:]
+            hr_blur_pred = hr_blur_pred[:100,:,:,:]
+
+            if opt["save_image"]:
+                solver.save_img(epoch, iter, visual_gt, visual, hr_blur, hr_blur_pred)
         if 'val_loss' not in solver_log['records']:
             solver_log['records']['val_loss']= []
         if 'psnr' not in solver_log['records']:

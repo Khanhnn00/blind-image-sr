@@ -6,8 +6,11 @@ import yaml
 from models.sr.blind_sr import BlindSR
 import options.options as option
 from data.common import random_anisotropic_gaussian_kernel, downsample, conv
+from utils import util
 from utils.util import img2tensor
 import os
+import imageio
+from data import common
 # import skimage.metrics
 os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
@@ -48,22 +51,35 @@ def main():
     parser = argparse.ArgumentParser(description='Train Super Resolution Models')
     #	parser.add_argument('-opt', type=str, required=True, help='Path to options JSON file.')
     #	opt = option.parse(parser.parse_args().opt)
-    opt = option.parse('options/train/train_IDK.json')
+    opt = option.parse('options/train/test_IDK.json')
+    
     args = parser.parse_args()
     image_path = '../SRbenchmark/HR_x4/bird_HR_x4.png'
     # Initializing mode
     model = BlindSR(opt)
-    k = random_anisotropic_gaussian_kernel().unsqueeze(0).cuda()
-    print(k.shape)
-    hr_img = cv2.cvtColor(cv2.imread(image_path), cv2.COLOR_BGR2RGB)
-    hr = img2tensor(hr_img).unsqueeze(0).cuda()
-    blur = conv(hr.permute(1,0,2,3), k, padding=7).permute(1,0,2,3)
-    lr = downsample(blur)
-    res = model.SR_step(lr, hr)
-    psnr, ssim = calc_psnr(hr_img, res),\
-                                calc_ssim(hr_img, res)
+    hr = common.read_img(image_path, 'img')
+    k = common.random_anisotropic_gaussian_kernel(19)
+    hr_tensor = common.np2Tensor([hr], 255)[0]
+    input = hr_tensor.unsqueeze(0)
+
+    input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
+    kernel = k.unsqueeze(0)
+
+    hr_blur = common.conv(input, kernel, padding=19//2)
+    hr_blur = hr_blur.permute(1, 0, 2, 3).float()
+    print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
+    img_blur = util.Tensor2np([hr_blur.squeeze(0)], 255)[0]
+    cv2.imwrite('./img_blur.png', cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
+    lr_tensor = common.downsample(hr_blur).float()
+    lr_img = util.Tensor2np([lr_tensor.squeeze(0)], 255)[0]
+    cv2.imwrite('./img_lr.png', cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB))
+    hr_blur = hr_blur.squeeze(0)
+    # lr_tensor = lr_tensor.unsqueeze(0)
+    res = model.SR_step(lr_tensor.cuda())
+    psnr, ssim = calc_psnr(hr, res),\
+                                calc_ssim(hr, res)
     print(psnr, ssim)
-    cv2.imwrite('./result.png', res)
+    cv2.imwrite('./result.png', cv2.cvtColor(res, cv2.COLOR_BGR2RGB))
 
 
 main()

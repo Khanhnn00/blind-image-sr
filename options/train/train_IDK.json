@@ -23,7 +23,7 @@
             "noise": ".",
             "phase": "train",
             "scale": 4,
-            "kernel_size": 15,
+            "kernel_size": 19,
             "rgb_range": 255
         },
         "val_SR": {
@@ -32,7 +32,7 @@
             "data_type": "img",
             "phase": "test",
             "scale": 4,
-            "kernel_size": 15,
+            "kernel_size": 19,
             "rgb_range": 255
         },
         "val_kernel": {
@@ -41,7 +41,7 @@
             "data_type": "img",
             "phase": "test",
             "scale": 4,
-            "kernel_size": 15,
+            "kernel_size": 19,
             "rgb_range": 255
         }
     },
@@ -93,7 +93,7 @@
         "loss_type": "l1",
         "manual_seed": 0,
         "num_epochs": 500,
-        "epoch_m1": 200,
+        "epoch_m1": 300,
         "skip_threshold": 3,
         "split_batch": 2,
         "save_ckp_step": 500,

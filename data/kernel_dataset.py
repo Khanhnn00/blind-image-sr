@@ -33,7 +33,7 @@ class LRHRDataset(data.Dataset):
         hr, hr_path = self._load_file(idx)
         if self.train:
             hr = self._get_patch(hr)
-        k = common.random_anisotropic_gaussian_kernel()
+        k = common.random_anisotropic_gaussian_kernel(self.opt['kernel_size'])
         
         hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])[0]
         input = hr_tensor.unsqueeze(0)

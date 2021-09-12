@@ -112,7 +112,7 @@ class KernelExtractor(nn.Module):
         self.conv2 = [
             nn.Conv2d(nf, nf, kernel_size=3, padding=1, stride=1),
             nn.ReLU(True),
-            nn.Conv2d(nf, 15*15, kernel_size=3, padding=1, stride=1),
+            nn.Conv2d(nf, 19*19, kernel_size=3, padding=1, stride=1),
         ]
         self.conv2 = nn.Sequential(*self.conv2)
 
@@ -128,10 +128,10 @@ class KernelExtractor(nn.Module):
         x4 = self.dec1(x3, x2_)
         x5 = self.dec2(x4, x1_)
         out = self.conv2(x5)
-        k = torch.reshape(F.adaptive_avg_pool2d(out, (1, 1)), (out.shape[0],1,15,15))
+        k = torch.reshape(F.adaptive_avg_pool2d(out, (1, 1)), (out.shape[0],1,19,19))
         blur = []
         for i in range(out.shape[0]):
-            tmp = F.conv2d(sharp[i].unsqueeze(0).permute(1,0,2,3), k[i].unsqueeze(0), padding=7).permute(1,0,2,3)
+            tmp = F.conv2d(sharp[i].unsqueeze(0).permute(1,0,2,3), k[i].unsqueeze(0), padding=9).permute(1,0,2,3)
             blur.append(tmp)
         blur = torch.cat(blur, dim=0).float()
 

@@ -9,7 +9,7 @@
   "use_chop": true,
   "rgb_range": 255,
   "self_ensemble": false,
-  "save_image": false,
+  "save_image": true,
   "datasets": {
     "train": {
       "mode": "LRHR_train",
@@ -23,7 +23,7 @@
       "noise": ".",
       "phase": "train",
       "scale": 4,
-      "kernel_size": 15,
+      "kernel_size": 19,
       "rgb_range": 255
     },
     "val_SR": {
@@ -56,11 +56,13 @@
       "upscale_factor": 4
     },
     "KernelExtractor": {
+      "in_channels": 3,
+      "out_channels": 1,
       "nf": 64,
       "kernel_dim": 512,
       "use_vae": false,
       "norm": "none",
-      "use_sharp": true,
+      "use_sharp": false,
       "n_blocks": 4,
       "padding_type": "reflect",
       "use_dropout": false
@@ -73,6 +75,10 @@
       "padding_type": "reflect"
     }
   },
+  "num_iters": 1000,
+  "reg_noise_std": 0.0001,
+  "x_lr": 0.0005,
+  "num_warmup_iters": 300,
   "solver": {
     "type": "ADAM",
     "learning_rate": 0.0001,
@@ -84,25 +90,28 @@
       600,
       800
     ],
+    "lr_steps_netG": [
+      200,
+      400,
+      600,
+      800
+    ],
     "lr_gamma": 0.5,
     "loss_type": "l1",
     "manual_seed": 0,
     "num_epochs": 500,
-    "epoch_m1": 200,
+    "epoch_m1": 300,
     "skip_threshold": 3,
     "split_batch": 2,
     "save_ckp_step": 500,
     "save_vis_step": 1,
-    "pretrain": null,
-    "pretrained_path": "./experiments/EDSR_V3_in3f256_x4/epochs/last_ckp.pth",
-    "cl_weights": [
-      1.0,
-      1.0,
-      1.0,
-      1.0
-    ]
+    "pretrain_SR": null,
+    "pretrain_netG": null,
+    "netG_only": false,
+    "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
+    "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_best_ckp.pth"
   },
-  "timestamp": "210904-144221",
+  "timestamp": "210912-072604",
   "path": {
     "exp_root": "experiments/IDK_in3f64_x4",
     "epochs": "experiments/IDK_in3f64_x4/epochs",

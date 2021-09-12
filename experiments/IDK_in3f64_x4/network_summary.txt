@@ -492,7 +492,7 @@ IDK(
     (conv2): Sequential(
       (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
       (1): ReLU(inplace=True)
-      (2): Conv2d(64, 225, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+      (2): Conv2d(64, 361, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
     )
   )
   (model): Sequential(
@@ -989,9 +989,9 @@ IDK(
       (conv2): Sequential(
         (0): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
         (1): ReLU(inplace=True)
-        (2): Conv2d(64, 225, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+        (2): Conv2d(64, 361, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
       )
     )
   )
 )
-Network structure: [DataParallel - IDK], with parameters: [9,280,207]
+Network structure: [DataParallel - IDK], with parameters: [9,358,679]
