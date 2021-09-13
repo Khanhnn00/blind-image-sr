@@ -23,7 +23,7 @@ class LRHRDataset(data.Dataset):
         self.paths_HR= None
 
         # change the length of train dataset (influence the number of iterations in each epoch)
-        self.repeat = 1
+        self.repeat = 2
 
         # read image list from image/binary files
         self.paths_HR = common.get_image_paths(self.opt['data_type'], self.opt['dataroot_HR'])

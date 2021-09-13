@@ -81,11 +81,17 @@ class KernelExtractor(nn.Module):
         self.model = nn.Sequential(*model)
 
     def forward(self, sharp, blur):
+        img_sharp = sharp
         sharp = self.feature_extractor(sharp)
         blur = self.feature_extractor(blur)
         output = self.model(torch.cat((sharp, blur), dim=1))
         output = torch.reshape(F.adaptive_avg_pool2d(output, (1, 1)), (output.shape[0],1,19,19))
-        return output.view((1,1,19,19))
+        blur = []
+        for i in range(output.shape[0]):
+            tmp = F.conv2d(img_sharp[i].unsqueeze(0).permute(1,0,2,3), output[i].unsqueeze(0), padding=9).permute(1,0,2,3)
+            blur.append(tmp)
+        blur = torch.cat(blur, dim=0).float()
+        return output.view((output.shape[0],1,19,19)), blur
 
 
 class StupidCatte(nn.Module):
