@@ -40,7 +40,7 @@ class BlindSR:
 
     def warmup(self, warmup_x):
         # Input vector of DIPs is sampled from N(z, I)
-        reg_noise_std = self.opt["reg_noise_std"]
+        # reg_noise_std = self.opt["reg_noise_std"]
 
         print("Warming up DIP")
 

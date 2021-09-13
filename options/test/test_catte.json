@@ -4,28 +4,13 @@
     "gpu_ids": [1],
 
     "scale": 4,
-    "is_train": true,
+    "is_train": false,
     "use_chop": true,
     "rgb_range": 255,
     "self_ensemble": false,
     "save_image": true,
 
     "datasets": {
-        "train": {
-            "mode": "LRHR_train",
-            "dataroot_HR": "../dataset/result/HR_x4_npy",
-            "data_type": "npy",
-            "n_workers": 0,
-            "batch_size": 48,
-            "LR_size": 48,
-            "use_flip": true,
-            "use_rot": true,
-            "noise": ".",
-            "phase": "train",
-            "scale": 4,
-            "kernel_size": 19,
-            "rgb_range": 255
-        },
         "val_SR": {
             "mode": "LRHR",
             "dataroot_HR": "../SRbenchmark/BSD100",
@@ -78,21 +63,12 @@
         } 
     },
 
+    "num_iters": 5000,
+    "reg_noise_std": 0.0001,
+    "x_lr": 5e-4,
+    "num_warmup_iters": 300,
+
     "solver": {
-        "type": "ADAM",
-        "learning_rate": 0.0001,
-        "weight_decay": 0,
-        "lr_scheme": "MultiStepLR",
-        "lr_steps": [200, 400, 600, 800],
-        "lr_steps_netG": [200,400, 600, 800],
-        "lr_gamma": 0.5,
-        "loss_type": "l1",
-        "manual_seed": 0,
-        "num_epochs": 500,
-        "skip_threshold": 3,
-        "split_batch": 2,
-        "save_ckp_step": 500,
-        "save_vis_step": 1,
         "pretrain_SR": null,
         "pretrain_netG": null,
         "netG_only": false,

@@ -207,22 +207,13 @@ def get_patch_lrx(img_in, img_inx, img_tar, patch_size, scale):
 
     return img_in, img_inx, img_tar
 
-
-def add_noise(x, noise='.'):
-    if noise is not '.':
-        noise_type = noise[0]
-        noise_value = int(noise[1:])
-        if noise_type == 'G':
-            noises = np.random.normal(scale=noise_value, size=x.shape)
-            noises = noises.round()
-        elif noise_type == 'S':
-            noises = np.random.poisson(x * noise_value) / noise_value
-            noises = noises - noises.mean(axis=0).mean(axis=0)
-        x_noise = x.astype(np.int16) + noises.astype(np.int16)
-        x_noise = x_noise.clip(0, 255).astype(np.uint8)
-        return x_noise
+def quantize_to_1(img, rgb_range):
+    if rgb_range != -1:
+        pixel_range = 1. / rgb_range
+        # return img.mul(pixel_range).clamp(0, 255).round().div(pixel_range)
+        return img.mul(pixel_range).clamp(0, 1).round()
     else:
-        return x
+        return img
 
 
 def augment(img_list, hflip=True, rot=True):

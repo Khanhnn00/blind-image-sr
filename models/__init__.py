@@ -94,6 +94,10 @@ def define_net(opt):
         from .sr.IDK import IDK
         net = IDK(opt)
     
+    elif which_model == 'STUPIDCATE':
+        from .sr.cattengu import StupidCatte
+        net = StupidCatte(opt)
+
     elif which_model == 'NETG':
         from .kernel_encoding.kernel_wizard import KernelExtractor
         net = KernelExtractor(opt)

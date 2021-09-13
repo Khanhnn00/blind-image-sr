@@ -163,14 +163,6 @@ def quantize(img, rgb_range):
     else:
         return img
 
-def quantize_dip(img, rgb_range=1):
-    if rgb_range != -1:
-        pixel_range = 255 / 1
-        # return img.mul(pixel_range).clamp(0, 255).round().div(pixel_range)
-        return img.mul(pixel_range).clamp(0, 255).round()
-    else:
-        return img
-
 def save_img(img, img_path, mode="RGB"):
     cv2.imwrite(img_path, img)
 
