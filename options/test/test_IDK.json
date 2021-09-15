@@ -77,9 +77,9 @@
         } 
     },
 
-    "num_iters": 5000,
+    "num_iters": 4000,
     "reg_noise_std": 0.0001,
-    "x_lr": 5e-4,
+    "x_lr": 1e-1,
     "num_warmup_iters": 300,
 
     "solver": {
@@ -101,7 +101,7 @@
         "pretrain_SR": null,
         "pretrain_netG": null,
         "netG_only": false,
-        "pretrainedSR_path": "./experiments/IDK_in3f64_x4_old_extract_blur/epochs/SR_last_ckp.pth",
-        "pretrainednetG_path": "./experiments/IDK_in3f64_x4_old_extract_blur/epochs/netG_best_ckp.pth"
+        "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
+        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_best_ckp.pth"
     }
 }

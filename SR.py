@@ -11,8 +11,10 @@ from utils.util import img2tensor
 import os
 import imageio
 from data import common
+from torchvision.utils import save_image
+
 # import skimage.metrics
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 def calc_psnr(img1, img2):
     # img1 and img2 have range [0, 255]
@@ -51,23 +53,24 @@ def main():
     parser = argparse.ArgumentParser(description='Train Super Resolution Models')
     #	parser.add_argument('-opt', type=str, required=True, help='Path to options JSON file.')
     #	opt = option.parse(parser.parse_args().opt)
-    opt = option.parse('options/train/test_IDK.json')
+    opt = option.parse('options/test/test_IDK.json')
     
     args = parser.parse_args()
-    image_path = '../SRbenchmark/HR_x4/bird_HR_x4.png'
+    image_path = '../SRbenchmark/HR_x4/woman_HR_x4.png'
     # Initializing mode
     model = BlindSR(opt)
     hr = common.read_img(image_path, 'img')
-    k = common.random_anisotropic_gaussian_kernel(19)
-    print(k.mean(), k.max(), k.min())
+    k = common.random_anisotropic_gaussian_kernel(15)
+    # print(k.mean(), k.max(), k.min())
     hr_tensor = common.np2Tensor([hr], 255)[0]
     print('hr.max(): {}, {}'.format(hr.max(), hr.mean()))
-    input = hr_tensor.unsqueeze(0)
+    inp_hr = hr_tensor.unsqueeze(0)
 
     input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
     kernel = k.unsqueeze(0)
+    save_image(kernel, './test_k_GT.png',nrow=1,  normalize=True)
 
-    hr_blur = common.conv(input, kernel, padding=19//2)
+    hr_blur = common.conv(input, kernel, padding=15//2)
     hr_blur = hr_blur.permute(1, 0, 2, 3).float()
     print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
     img_blur = util.Tensor2np([hr_blur.squeeze(0)], 255)[0]
@@ -76,12 +79,13 @@ def main():
     lr_img = util.Tensor2np([lr_tensor.squeeze(0)], 255)[0]
     cv2.imwrite('./img_lr.png', cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB))
     hr_blur = hr_blur.squeeze(0)
-    # lr_tensor = lr_tensor.unsqueeze(0)
-    res = model.SR_step(lr_tensor.cuda())
+    res = model.SR_step(lr_tensor.cuda(), kernel.cuda())
     psnr, ssim = calc_psnr(hr, res),\
                                 calc_ssim(hr, res)
     print(psnr, ssim)
-    cv2.imwrite('./result.png', cv2.cvtColor(res, cv2.COLOR_BGR2RGB))
+    cv2.imwrite('./result.png', res)
 
+    # res = model.extract(inp_hr, hr_blur)
+    # cv2.imwrite('./test_extract.png', res)
 
 main()

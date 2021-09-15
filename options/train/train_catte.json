@@ -84,11 +84,11 @@
         "weight_decay": 0,
         "lr_scheme": "MultiStepLR",
         "lr_steps": [200, 400, 600, 800],
-        "lr_steps_netG": [100,200, 300, 400],
+        "lr_steps_netG": [300,500,700],
         "lr_gamma": 0.5,
         "loss_type": "l1",
         "manual_seed": 0,
-        "num_epochs": 500,
+        "num_epochs": 1000,
         "skip_threshold": 3,
         "split_batch": 2,
         "save_ckp_step": 500,
@@ -97,6 +97,6 @@
         "pretrain_netG": null,
         "netG_only": true,
         "pretrainedSR_path": "./experiments/STUPIDCATE_in3f64_x4/epochs/SR_last_ckp.pth",
-        "pretrainednetG_path": "./experiments/STUPIDCATE_in3f64_x4/epochs/netG_best_ckp.pth"
+        "pretrainednetG_path": "./experiments/STUPIDCATE_in3f64_x4/epochs/netG_last_ckp.pth"
     }
 }

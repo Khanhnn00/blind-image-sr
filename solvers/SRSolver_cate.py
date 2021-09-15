@@ -187,7 +187,7 @@ class SRSolver_cate(BaseSolver):
                     HR_blur = self.model.module.SR(split_LR)
                 pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
                 # pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
-                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(pred_blur, HR_blur)
+                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(pred_blur, split_HR_blur)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -414,9 +414,10 @@ class SRSolver_cate(BaseSolver):
                 if self.opt['solver']['pretrain_netG'] == 'resume':
                     self.cur_epoch_netG = checkpoint_netG['epoch'] + 1
                     self.optimizer2.load_state_dict(checkpoint_netG['optimizer'])
-                    self.best_pred_SR = checkpoint_netG['best_pred']
-                    self.best_epoch_SR = checkpoint_netG['best_epoch']
-                    self.records_SR = checkpoint_netG['records']
+                    self.best_pred_netG = checkpoint_netG['best_pred']
+                    self.best_epoch_netG = checkpoint_netG['best_epoch']
+                    self.records_netG = checkpoint_netG['records']
+                    print(self.records_netG)
 
             else:
                 checkpoint_SR = torch.load(model_path_SR)

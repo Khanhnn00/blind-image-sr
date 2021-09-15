@@ -84,7 +84,8 @@ class KernelExtractor(nn.Module):
         img_sharp = sharp
         sharp = self.feature_extractor(sharp)
         blur = self.feature_extractor(blur)
-        output = self.model(torch.cat((sharp, blur), dim=1))
+        inp = torch.cat((sharp, blur), dim=1) if self.use_sharp else blur
+        output = self.model(inp)
         output = torch.reshape(F.adaptive_avg_pool2d(output, (1, 1)), (output.shape[0],1,19,19))
         blur = []
         for i in range(output.shape[0]):

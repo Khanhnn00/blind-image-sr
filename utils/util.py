@@ -123,7 +123,7 @@ def Tensor2np(tensor_list, rgb_range):
     return [_Tensor2numpy(tensor, rgb_range) for tensor in tensor_list]
 
 
-def tensor2img(tensor, out_type=np.uint8, min_max=(0, 1)):
+def tensor2img(tensor, out_type=np.uint8, min_max=(0, 255)):
     """
     Converts a torch Tensor into an image Numpy array
     Input: 4D(B,(3/1),H,W), 3D(C,H,W), or 2D(H,W), any range, RGB channel order
@@ -131,6 +131,7 @@ def tensor2img(tensor, out_type=np.uint8, min_max=(0, 1)):
     """
 
     # clamp
+    print(tensor.min(), tensor.max())
     tensor = tensor.squeeze().float().cpu().clamp_(*min_max)
 
     # to range [0,1]

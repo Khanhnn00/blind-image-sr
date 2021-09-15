@@ -10,9 +10,11 @@ import cv2
 from models.losses.hyper_laplacian_penalty import HyperLaplacianPenalty
 from models.losses.perceptual_loss import PerceptualLoss
 from models.losses.ssim_loss import SSIM
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
 from data.common import downsample, conv
 import numpy as np
+from torchvision.utils import save_image
+import torch.nn.functional as F
 
 
 class BlindSR:
@@ -31,10 +33,11 @@ class BlindSR:
 
     def prepare_DIP(self, size):
         self.random_x = util.get_noise(8, "noise", size).cuda()
-
+    
     def reset_optimizers(self):
         self.x_optimizer = torch.optim.Adam(self.dip.parameters(), lr=self.opt["x_lr"])
-        self.x_scheduler = StepLR(self.x_optimizer, step_size=self.opt["num_iters"] // 5, gamma=0.7)
+        # self.x_scheduler = MultiStepLR(self.x_optimizer, [1, (self.opt["num_iters"] // 5)], gamma=[0.995, 0.7])
+        self.x_scheduler = StepLR(self.x_optimizer, step_size=self.opt["num_iters"] // 2, gamma=0.7)
         # self.k_optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0001)
         # self.k_scheduler = StepLR(self.k_optimizer, step_size=self.opt["num_iters"] // 5, gamma=0.7)
 
@@ -50,10 +53,20 @@ class BlindSR:
             x = self.dip(self.random_x)
 
             loss = self.mse(x, warmup_x)
+            print(loss)
+            if loss.item() < 10:
+                return
             loss.backward()
             self.x_optimizer.step()
+        res = util.tensor2img(x.detach())
+        cv2.imwrite('./after_warmup.png', res)
 
-    def SR_step(self, lr):
+    def extract(self, hr, hr_blur):
+        k, blur = self.netG(hr.cuda(), hr_blur.cuda())
+        save_image(k, './test_k.png',nrow=1,  normalize=True)
+        return util.tensor2img(blur.detach())
+
+    def SR_step(self, lr, k):
         """Enhance resolution
         Args:
             lr: Low-resolution image
@@ -81,33 +94,45 @@ class BlindSR:
 
         print("Deblurring")
         reg_noise_std = self.opt["reg_noise_std"]
+        self.x_optimizer.param_groups[0]['lr'] = 5e-4
         for step in tqdm(range(self.opt["num_iters"])):
+            # print('Current LR: {}'.format(self.x_optimizer.param_groups[0]['lr']))
             # dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
 
             self.x_optimizer.zero_grad()
             self.x_scheduler.step()
 
+
             hr_pred = self.dip(self.random_x)
+            # print(hr_pred.max(), hr_pred.min(), hr_pred.mean())
             # with torch.no_grad():
-            k_pred, blur_pred = self.netG(hr_pred, hr_blur)
+            #     k_pred, blur_pred = self.netG(hr_pred, hr_blur)
             
+            tmp = F.conv2d(hr_pred.permute(1,0,2,3), k, padding=7).permute(1,0,2,3)
+
+            if step%30 == 0:
+                res = util.tensor2img(hr_pred.detach())
+                cv2.imwrite('./test/{}.png'.format(step), res)
+                res = util.tensor2img(tmp.detach())
+                cv2.imwrite('./test/blur_{}.png'.format(step), res)
+                # save_image(k_pred, './test/k_{}.png'.format(step),nrow=1,  normalize=True)
             # print(k_pred.shape)
             # print(blur_pred.shape)
 
-            lr_pred = downsample(blur_pred)
-            tmp =util.quantize_dip(hr_pred)
+            # lr_pred = downsample(tmp)
+            # tmp =util.quantize_dip(hr_pred)
             # print('lr_pred.max(): {}, {}'.format(lr_pred.max(), lr_pred.mean()))
             # print('hr_pred.max(): {}, {}'.format(tmp.max(), tmp.mean()))
 
-            if step < self.opt["num_iters"] // 2:
-                total_loss = 6e-1 * self.l1(lr_pred, lr)
-                total_loss += 1 - self.ssim_loss(lr_pred, lr)
-                total_loss += 5e-5 * torch.norm(k_pred)
-                total_loss += 2e-2 * self.laplace_penalty(hr_pred)
+            if step < self.opt["num_iters"]//2:
+                # total_loss = self.mse(tmp, hr_blur)
+                total_loss = 1 - self.ssim_loss(tmp, hr_blur)
+                # total_loss += 5e-5 * torch.norm(k_pred)
+                # total_loss += 2e-2 * self.laplace_penalty(hr_pred)
             else:
-                total_loss = self.l1(lr_pred, lr)
-                total_loss += 5e-2 * self.laplace_penalty(hr_pred)
-                total_loss += 5e-4 * torch.norm(k_pred)
+                total_loss = self.mse(tmp, hr_blur)
+                # total_loss += 5e-2 * self.laplace_penalty(hr_pred)
+                # total_loss += 5e-4 * torch.norm(k_pred)
 
             total_loss.backward()
 
@@ -119,9 +144,10 @@ class BlindSR:
             #     print(torch.norm(k))
             #     print(f"{self.k_optimizer.param_groups[0]['lr']:.3e}")
         
-        img_lr_pred = util.Tensor2np([lr_pred.squeeze().detach().cpu().float()], 255)[0]
-        cv2.imwrite('./lr_pred.png', img_lr_pred)
-        return util.Tensor2np([tmp.squeeze(0).detach().cpu().float()], 255)[0]
+        # img_lr_pred = util.Tensor2np([lr_pred.squeeze().detach().cpu().float()], 255)[0]
+        # cv2.imwrite('./lr_pred.png', img_lr_pred)
+        # return util.Tensor2np([hr_pred.squeeze(0).detach().cpu().float()], 255)[0]
+        return util.tensor2img(hr_pred.detach())
 
     def load(self):
         """
@@ -147,8 +173,8 @@ class BlindSR:
     
         checkpoint = torch.load(netG_path)
         if 'state_dict' in checkpoint.keys(): checkpoint = checkpoint['state_dict']
-        # load_func = self.netG.load_state_dict
-        # load_func(checkpoint)
+        load_func = self.netG.load_state_dict
+        load_func(checkpoint)
 
     def _overlap_crop_forward(self, x, shave=10, min_size=100000, bic=None, n_GPUs=4):
         """
