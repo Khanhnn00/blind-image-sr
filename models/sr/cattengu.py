@@ -66,7 +66,8 @@ class KernelExtractor(nn.Module):
                 norm_layer(nf * mult * 2),
                 nn.ReLU(True),
             ]
-
+        self.head = nn.Sequential(*model)
+        model = []
         for i in range(n_blocks):  # add ResNet blocks
             model += [
                 ResnetBlock(
@@ -77,22 +78,31 @@ class KernelExtractor(nn.Module):
                     use_bias=use_bias,
                 )
             ]
-        model += [nn.AvgPool2d(2, stride=1)]
-        self.model = nn.Sequential(*model)
+        mult = 2 ** i
+        inc = min(nf * mult, output_nc)
+        ouc = min(nf * mult * 2, output_nc)
+        model += [
+            nn.Conv2d(inc, ouc, kernel_size=3, stride=2, padding=1, bias=use_bias),
+            norm_layer(nf * mult * 2),
+            nn.ReLU(True)]
+        self.tail = nn.Sequential(*model)
 
     def forward(self, sharp, blur):
         img_sharp = sharp
         sharp = self.feature_extractor(sharp)
         blur = self.feature_extractor(blur)
         inp = torch.cat((sharp, blur), dim=1) if self.use_sharp else blur
-        output = self.model(inp)
-        output = torch.reshape(F.adaptive_avg_pool2d(output, (1, 1)), (output.shape[0],1,19,19))
+        # print('inp.shape: {}'.format(inp.shape))
+        output = self.head(inp)
+        # print('intermediate: {}'.format(output.shape))
+        output = self.tail(output)
+        # print('output.shape: {}'.format(output.shape))
         blur = []
         for i in range(output.shape[0]):
-            tmp = F.conv2d(img_sharp[i].unsqueeze(0).permute(1,0,2,3), output[i].unsqueeze(0), padding=9).permute(1,0,2,3)
+            tmp = F.conv2d(img_sharp[i].unsqueeze(0).permute(1,0,2,3), torch.reshape(output[i], ((1, 19,19))).unsqueeze(0), padding=9).permute(1,0,2,3)
             blur.append(tmp)
         blur = torch.cat(blur, dim=0).float()
-        return output.view((output.shape[0],1,19,19)), blur
+        return output, blur
 
 
 class StupidCatte(nn.Module):

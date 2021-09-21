@@ -3,7 +3,8 @@ import torch.nn as nn
 import utils.util as util
 from models.dips import ImageDIP
 from models.backbones.edsr import EDSR
-from models.kernel_encoding.kernel_wizard import KernelExtractor
+# from models.kernel_encoding.kernel_wizard import KernelExtractor
+from models.sr.cattengu import KernelExtractor
 from models.sr.IDK import IDK
 from tqdm import tqdm
 import cv2
@@ -38,19 +39,19 @@ class BlindSR:
         self.x_optimizer = torch.optim.Adam(self.dip.parameters(), lr=self.opt["x_lr"])
         # self.x_scheduler = MultiStepLR(self.x_optimizer, [1, (self.opt["num_iters"] // 5)], gamma=[0.995, 0.7])
         self.x_scheduler = StepLR(self.x_optimizer, step_size=self.opt["num_iters"] // 2, gamma=0.7)
-        # self.k_optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0001)
-        # self.k_scheduler = StepLR(self.k_optimizer, step_size=self.opt["num_iters"] // 5, gamma=0.7)
+        self.k_optimizer = torch.optim.Adam(self.netG.parameters(), lr=1e-4)
+        self.k_scheduler = StepLR(self.k_optimizer, step_size=self.opt["num_iters"] // 2, gamma=0.7)
 
     def warmup(self, warmup_x):
         # Input vector of DIPs is sampled from N(z, I)
-        # reg_noise_std = self.opt["reg_noise_std"]
+        reg_noise_std = self.opt["reg_noise_std"]
 
         print("Warming up DIP")
 
         for step in tqdm(range(self.opt["num_warmup_iters"])):
             self.x_optimizer.zero_grad()
-            # dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
-            x = self.dip(self.random_x)
+            dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
+            x = self.dip(dip_zx_rand)
 
             loss = self.mse(x, warmup_x)
             print(loss)
@@ -66,7 +67,7 @@ class BlindSR:
         save_image(k, './test_k.png',nrow=1,  normalize=True)
         return util.tensor2img(blur.detach())
 
-    def SR_step(self, lr, k):
+    def SR_step(self, lr):
         """Enhance resolution
         Args:
             lr: Low-resolution image
@@ -97,25 +98,26 @@ class BlindSR:
         self.x_optimizer.param_groups[0]['lr'] = 5e-4
         for step in tqdm(range(self.opt["num_iters"])):
             # print('Current LR: {}'.format(self.x_optimizer.param_groups[0]['lr']))
-            # dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
+            dip_zx_rand = self.random_x + reg_noise_std * torch.randn_like(self.random_x).cuda()
 
             self.x_optimizer.zero_grad()
             self.x_scheduler.step()
+            self.k_optimizer.zero_grad()
+            self.k_scheduler.step()
 
 
-            hr_pred = self.dip(self.random_x)
+            hr_pred = self.dip(dip_zx_rand)
             # print(hr_pred.max(), hr_pred.min(), hr_pred.mean())
-            # with torch.no_grad():
-            #     k_pred, blur_pred = self.netG(hr_pred, hr_blur)
+            k_pred, blur_pred = self.netG(hr_pred, hr_blur)
             
-            tmp = F.conv2d(hr_pred.permute(1,0,2,3), k, padding=7).permute(1,0,2,3)
+            tmp = F.conv2d(hr_pred.permute(1,0,2,3), k_pred, padding=9).permute(1,0,2,3)
 
             if step%30 == 0:
                 res = util.tensor2img(hr_pred.detach())
                 cv2.imwrite('./test/{}.png'.format(step), res)
                 res = util.tensor2img(tmp.detach())
                 cv2.imwrite('./test/blur_{}.png'.format(step), res)
-                # save_image(k_pred, './test/k_{}.png'.format(step),nrow=1,  normalize=True)
+                save_image(k_pred, './test/k_{}.png'.format(step),nrow=1,  normalize=True)
             # print(k_pred.shape)
             # print(blur_pred.shape)
 
@@ -137,7 +139,7 @@ class BlindSR:
             total_loss.backward()
 
             self.x_optimizer.step()
-            # self.k_optimizer.step()
+            self.k_optimizer.step()
 
             # debugging
             # if step % 100 == 0:

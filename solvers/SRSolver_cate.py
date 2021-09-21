@@ -187,7 +187,7 @@ class SRSolver_cate(BaseSolver):
                     HR_blur = self.model.module.SR(split_LR)
                 pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
                 # pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
-                loss_sbatch = self.criterion_pix_k(pred_k, split_k) + self.criterion_pix_netG(pred_blur, split_HR_blur)
+                loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.criterion_pix_netG(pred_blur, split_HR_blur)
 
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
@@ -223,7 +223,8 @@ class SRSolver_cate(BaseSolver):
             self.model.module.netG.eval()
             with torch.no_grad():
                 pred_k, pred_blur = self.model.module.netG(self.HR, self.HR_blur)
-                self.SR = pred_k
+                # print('pred_k.shape: {}'.format(pred_k.shape))
+                self.SR = torch.reshape(pred_k, ((pred_k.shape[0],1, 19,19)))
 
                 self.HR_blur_pred_crop = pred_blur[:,:,:224,:224]
                 self.HR_blur_crop = self.HR_blur[:,:,:224,:224]
@@ -232,6 +233,7 @@ class SRSolver_cate(BaseSolver):
             if self.is_train:
                 loss_pix = self.criterion_pix_k(self.SR, self.k) + self.criterion_pix_netG(self.HR_blur_pred, self.HR_blur)
                 return loss_pix.item()
+
 
     def _forward_x8(self, x, forward_function):
         """

@@ -1,6 +1,7 @@
 import torch.utils.data as data
 
 from data import common
+import torch
 
 
 class LRHRDataset(data.Dataset):
@@ -31,8 +32,9 @@ class LRHRDataset(data.Dataset):
 
     def __getitem__(self, idx):
         hr, hr_path = self._load_file(idx)
-        if self.train:
-            hr = self._get_patch(hr)
+        # if self.train:
+        hr = self._get_patch(hr)
+        # print(hr.shape)
         k = common.random_anisotropic_gaussian_kernel(self.opt['kernel_size'])
         
         hr_tensor = common.np2Tensor([hr], self.opt['rgb_range'])[0]
@@ -41,7 +43,6 @@ class LRHRDataset(data.Dataset):
         kernel = k.unsqueeze(0)
     
         hr_blur = common.conv(input, kernel, padding=self.opt['kernel_size']//2)
-        # print(input.shape, hr_blur.shape)
         assert input.shape == hr_blur.shape
         hr_blur = hr_blur.permute(1, 0, 2, 3)
         hr_blur = hr_blur.squeeze(0)
@@ -70,9 +71,6 @@ class LRHRDataset(data.Dataset):
     def _get_patch(self, hr):
 
         LR_size = self.opt['LR_size']
-        # random crop and augment
         hr = common.get_patch(
             hr, LR_size, self.scale)
-        hr = common.augment([hr])
-
-        return hr   
+        return hr

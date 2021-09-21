@@ -53,39 +53,37 @@ def main():
     parser = argparse.ArgumentParser(description='Train Super Resolution Models')
     #	parser.add_argument('-opt', type=str, required=True, help='Path to options JSON file.')
     #	opt = option.parse(parser.parse_args().opt)
-    opt = option.parse('options/test/test_IDK.json')
+    opt = option.parse('options/test/test_catte.json')
     
     args = parser.parse_args()
-    image_path = '../SRbenchmark/HR_x4/woman_HR_x4.png'
-    # Initializing mode
-    model = BlindSR(opt)
-    hr = common.read_img(image_path, 'img')
-    k = common.random_anisotropic_gaussian_kernel(15)
-    # print(k.mean(), k.max(), k.min())
-    hr_tensor = common.np2Tensor([hr], 255)[0]
-    print('hr.max(): {}, {}'.format(hr.max(), hr.mean()))
-    inp_hr = hr_tensor.unsqueeze(0)
+    folder_path = '../SRbenchmark/HR_x4'
+    for img in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, img)
+        # Initializing mode
+        model = BlindSR(opt)
+        hr = common.read_img(image_path, 'img')
+        k = common.random_anisotropic_gaussian_kernel(19)
+        # print(k.mean(), k.max(), k.min())
+        hr_tensor = common.np2Tensor([hr], 255)[0]
+        print('hr.max(): {}, {}'.format(hr.max(), hr.mean()))
 
-    input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
-    kernel = k.unsqueeze(0)
-    save_image(kernel, './test_k_GT.png',nrow=1,  normalize=True)
+        input = hr_tensor.unsqueeze(0).permute(1, 0, 2, 3)
+        kernel = k.unsqueeze(0)
+        save_image(kernel, './test_k_GT.png',nrow=1,  normalize=True)
 
-    hr_blur = common.conv(input, kernel, padding=15//2)
-    hr_blur = hr_blur.permute(1, 0, 2, 3).float()
-    print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
-    img_blur = util.Tensor2np([hr_blur.squeeze(0)], 255)[0]
-    cv2.imwrite('./img_blur.png', cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
-    lr_tensor = common.downsample(hr_blur).float()
-    lr_img = util.Tensor2np([lr_tensor.squeeze(0)], 255)[0]
-    cv2.imwrite('./img_lr.png', cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB))
-    hr_blur = hr_blur.squeeze(0)
-    res = model.SR_step(lr_tensor.cuda(), kernel.cuda())
-    psnr, ssim = calc_psnr(hr, res),\
-                                calc_ssim(hr, res)
-    print(psnr, ssim)
-    cv2.imwrite('./result.png', res)
-
-    # res = model.extract(inp_hr, hr_blur)
-    # cv2.imwrite('./test_extract.png', res)
+        hr_blur = common.conv(input, kernel, padding=19//2)
+        hr_blur = hr_blur.permute(1, 0, 2, 3).float()
+        print(hr_blur.mean(), hr_blur.max(), hr_blur.min())
+        img_blur = util.Tensor2np([hr_blur.squeeze(0)], 255)[0]
+        cv2.imwrite('./img_blur.png', cv2.cvtColor(img_blur, cv2.COLOR_BGR2RGB))
+        lr_tensor = common.downsample(hr_blur).float()
+        lr_img = util.Tensor2np([lr_tensor.squeeze(0)], 255)[0]
+        cv2.imwrite('./img_lr.png', cv2.cvtColor(lr_img, cv2.COLOR_BGR2RGB))
+        hr_blur = hr_blur.squeeze(0)
+        res = model.SR_step(lr_tensor.cuda())
+        psnr, ssim = calc_psnr(hr, res),\
+                                    calc_ssim(hr, res)
+        print(psnr, ssim)
+        cv2.imwrite(img, res)
 
 main()

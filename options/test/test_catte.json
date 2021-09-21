@@ -45,9 +45,9 @@
             "in_channels": 3,
             "out_channels": 1,
             "nf": 64,
-            "kernel_dim": 316,
+            "kernel_dim": 361,
             "norm": "none",
-            "use_sharp": false,
+            "use_sharp": true,
             "n_blocks": 4,
             "padding_type": "reflect",
             "use_dropout": false,
@@ -63,9 +63,9 @@
         } 
     },
 
-    "num_iters": 5000,
+    "num_iters": 4000,
     "reg_noise_std": 0.0001,
-    "x_lr": 5e-4,
+    "x_lr": 1e-1,
     "num_warmup_iters": 300,
 
     "solver": {

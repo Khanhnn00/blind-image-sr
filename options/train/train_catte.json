@@ -38,6 +38,7 @@
         "val_kernel": {
             "mode": "LRHR_kernel",
             "dataroot_HR": "../SRbenchmark/BSD100",
+            "LR_size": 48,
             "data_type": "img",
             "phase": "test",
             "scale": 4,
@@ -84,7 +85,7 @@
         "weight_decay": 0,
         "lr_scheme": "MultiStepLR",
         "lr_steps": [200, 400, 600, 800],
-        "lr_steps_netG": [300,500,700],
+        "lr_steps_netG": [205,400,700],
         "lr_gamma": 0.5,
         "loss_type": "l1",
         "manual_seed": 0,

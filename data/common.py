@@ -147,6 +147,7 @@ def np2Tensor(l, rgb_range):
         # print(type(img))
         #if img.shape[2] == 3: # for opencv imread
         #    img = img[:, :, [2, 1, 0]]
+        # print(img.shape)
         np_transpose = np.ascontiguousarray(img.transpose((2, 0, 1)))
         tensor = torch.from_numpy(np_transpose.copy()).float()
         tensor.mul_(rgb_range / 255.)
