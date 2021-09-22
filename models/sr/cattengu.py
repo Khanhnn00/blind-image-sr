@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from models.backbones.resnet import ResidualBlock_noBN, ResnetBlock
 from models.backbones import edsr
+from models.kernel_encoding.kernel_wizard import KernelExtractor as KernelExtractor2
 
 
 # The function F in the paper
@@ -110,7 +111,9 @@ class StupidCatte(nn.Module):
         super(StupidCatte, self).__init__()
         self.opt = opt
         # Kernel extractor
-        self.netG = KernelExtractor(opt["network"]["KernelExtractor"])
+        # self.netG = KernelExtractor(opt["network"]["KernelExtractor"])
+        KernelExtractor2
+        self.netG = KernelExtractor2(opt["network"]["KernelExtractor2"])
 
         # SR module
         self.SR = edsr.EDSR(opt["network"]["SR"])

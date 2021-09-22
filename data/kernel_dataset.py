@@ -32,8 +32,8 @@ class LRHRDataset(data.Dataset):
 
     def __getitem__(self, idx):
         hr, hr_path = self._load_file(idx)
-        # if self.train:
-        hr = self._get_patch(hr)
+        if self.train:
+            hr = self._get_patch(hr)
         # print(hr.shape)
         k = common.random_anisotropic_gaussian_kernel(self.opt['kernel_size'])
         

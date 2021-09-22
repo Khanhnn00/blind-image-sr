@@ -185,8 +185,8 @@ class SRSolver_cate(BaseSolver):
                 split_HR_blur = self.HR_blur.narrow(0, i*sub_batch_size, sub_batch_size)
                 with torch.no_grad():
                     HR_blur = self.model.module.SR(split_LR)
-                pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
-                # pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
+                # pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
+                pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
                 loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.criterion_pix_netG(pred_blur, split_HR_blur)
 
                 loss_sbatch /= self.split_batch

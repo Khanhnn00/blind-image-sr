@@ -10,9 +10,8 @@ import os
 from solvers import create_solver
 from data import create_dataloader
 from data import create_dataset
-from torchvision.utils import save_image
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log, loader_list, opt, which):
     # print(solver_log)
@@ -54,20 +53,17 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
             # calculate evaluation metrics
             visuals = solver.get_current_visual(which=which)
             if which ==1:
-                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=True)
+                psnr, ssim = util.calc_metrics(visuals['SR'], visuals['HR'], crop_border=4, test_Y=False)
                 hr_blur_pred.append(np.expand_dims(visuals['SR_crop'], axis=0).transpose(0,3,1,2))
                 hr_blur.append(np.expand_dims(visuals['HR_crop'], axis=0).transpose(0,3,1,2))
                 
             else:
-                # print(type(visuals['k']), visuals['k'].shape)
-                # print(visuals['k'].max(), visuals['k'].mean())
                 visual_gt.append(np.expand_dims(visuals['k'], axis=0).transpose(0,3,1,2))
                 visual.append(np.expand_dims(visuals['SR'], axis=0).transpose(0,3,1,2))
                 hr_blur_pred.append(np.expand_dims(visuals['HR_pred'], axis=0).transpose(0,3,1,2))
                 hr_blur.append(np.expand_dims(visuals['HR_blur'], axis=0).transpose(0,3,1,2))
                 psnr, ssim = skimage.metrics.peak_signal_noise_ratio(visuals['k'], visuals['SR']),\
                                 skimage.metrics.structural_similarity(visuals['k'], visuals['SR'], multichannel=True)
-                # print(psnr, ssim)
                 
             psnr_list.append(psnr)
             ssim_list.append(ssim)
@@ -75,23 +71,17 @@ def train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log
         if which ==1:
             hr_blur = np.concatenate(hr_blur, axis=0)
             hr_blur_pred = np.concatenate(hr_blur_pred, axis=0)
-            # print(hr_blur.shape, hr_blur_pred.shape)
             hr_blur = hr_blur[:100,:,:,:]
             hr_blur_pred = hr_blur_pred[:100,:,:,:]
             hr_blur = torch.from_numpy(hr_blur)
             hr_blur_pred = torch.from_numpy(hr_blur_pred)
-            # print('Before feeding')
-            # print(hr_blur.shape, hr_blur_pred.shape)
             if opt["save_image"]:
-                solver.save_current_visual(epoch, iter, hr_blur, hr_blur_pred)
+                solver.save_current_visual(hr_blur, hr_blur_pred)
         else:
             visual_gt = np.concatenate(visual_gt, axis=0)
             hr_blur = np.concatenate(hr_blur, axis=0)
             hr_blur_pred = np.concatenate(hr_blur_pred, axis=0)
-            # print(visual_gt.shape)
             visual = np.concatenate(visual, axis=0)
-            # print(visual.shape)
-            # print(hr_blur.shape)
             visual = torch.from_numpy(visual)
             visual_gt = torch.from_numpy(visual_gt)
             hr_blur = torch.from_numpy(hr_blur).float()
@@ -204,20 +194,13 @@ def main():
             train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
         
         else:
-            if epoch < opt['solver']['epoch_m1']: #if we have not trained enough for module 1 - SR
-                print('\n===> Training Epoch: [%d/%d] SR module ...  Learning Rate: %f'%(epoch,
-                                                                            NUM_EPOCH,
-                                                                            solver.get_current_learning_rate(1)))
-           
-                solver_log_SR['epoch'] = epoch
-                train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
-            else:
-                print('\n===> Training Epoch: [%d/%d] netG module ...  Learning Rate: %f'%(epoch,
-                                                                            NUM_EPOCH,
-                                                                            solver.get_current_learning_rate(2)))
-                solver_log_netG['epoch'] = epoch
-                train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_netG, loader_list, opt, 2)
-
+            print('\n===> Training Epoch: [%d/%d] SR module ...  Learning Rate: %f'%(epoch,
+                                                                        NUM_EPOCH,
+                                                                        solver.get_current_learning_rate(1)))
+        
+            solver_log_SR['epoch'] = epoch
+            train(train_loader, train_set, val_set, epoch, NUM_EPOCH, solver, solver_log_SR, loader_list, opt, 1)
+    
 
 
 if __name__ == '__main__':

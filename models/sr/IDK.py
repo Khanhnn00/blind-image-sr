@@ -22,11 +22,11 @@ class IDK(nn.Module):
         self.is_train = opt["is_train"]
 
         self.scale = opt["network"]["SR"]["upscale_factor"]
-        model.append(self.DIP)
-        model.append(self.SR)
-        model.append(self.netG)
+        # model.append(self.DIP)
+        # model.append(self.SR)
+        # model.append(self.netG)
 
-        self.model = nn.Sequential(*model)
+        # self.model = nn.Sequential(*model)
 
 
     def forward(self, lr=None, zx=None, hr=None):

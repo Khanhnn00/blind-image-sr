@@ -16,7 +16,7 @@
             "dataroot_HR": "../dataset/result/HR_x4_npy",
             "data_type": "npy",
             "n_workers": 0,
-            "batch_size": 48,
+            "batch_size": 32,
             "LR_size": 48,
             "use_flip": true,
             "use_rot": true,
@@ -24,7 +24,7 @@
             "phase": "train",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 1
+            "rgb_range": 255
         },
         "val_SR": {
             "mode": "LRHR",
@@ -33,7 +33,7 @@
             "phase": "test",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 1
+            "rgb_range": 255
         },
         "val_kernel": {
             "mode": "LRHR_kernel",
@@ -42,7 +42,7 @@
             "phase": "test",
             "scale": 4,
             "kernel_size": 19,
-            "rgb_range": 1
+            "rgb_range": 255
         }
     },
 
@@ -60,7 +60,7 @@
             "in_channels": 3,
             "out_channels": 1,
             "nf": 64,
-            "kernel_dim": 512,
+            "kernel_size": 19,
             "use_vae": false,
             "norm": "none",
             "use_sharp": false,
@@ -93,15 +93,14 @@
         "loss_type": "l1",
         "manual_seed": 0,
         "num_epochs": 500,
-        "epoch_m1": 300,
         "skip_threshold": 3,
         "split_batch": 2,
-        "save_ckp_step": 500,
+        "save_ckp_step": 100,
         "save_vis_step": 1,
         "pretrain_SR": "resume",
-        "pretrain_netG": null,
+        "pretrain_netG": "resume",
         "netG_only": true,
         "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
-        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_best_ckp.pth"
+        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_last_ckp.pth"
     }
 }
