@@ -167,6 +167,35 @@ class SRSolver(BaseSolver):
         self.model.module.SR.eval()
         return loss_batch
 
+    def normal_kl(self,mean1, logvar1, mean2, logvar2):
+        """
+        Compute the KL divergence between two gaussians.
+        Shapes are automatically broadcasted, so batches can be compared to
+        scalars, among other use cases.
+        """
+        tensor = None
+        for obj in (mean1, logvar1, mean2, logvar2):
+            if isinstance(obj, torch.Tensor):
+                tensor = obj
+                break
+        assert tensor is not None, "at least one argument must be a Tensor"
+
+        # Force variances to be Tensors. Broadcasting helps convert scalars to
+        # Tensors, but it does not work for th.exp().
+        logvar1, logvar2 = [
+            x if isinstance(x, torch.Tensor) else torch.tensor(x).to(tensor)
+            for x in (logvar1, logvar2)
+        ]
+
+        kl= 0.5 * (
+            -1.0
+            + logvar2
+            - logvar1
+            + torch.exp(logvar1 - logvar2)
+            + ((mean1 - mean2) ** 2) * torch.exp(-logvar2)
+        )
+        kl = kl.mean(dim=list(range(1, len(kl.shape)))) / np.log(2.0)
+        return kl
 
     def train_m2(self):
         self.model.module.SR.eval()
@@ -186,9 +215,21 @@ class SRSolver(BaseSolver):
                 with torch.no_grad():
                     HR_blur = self.model.module.SR(split_LR)
                 # pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur)
-                pred_k, pred_blur = self.model.module.netG(split_HR, split_HR_blur)
-                loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.criterion_pix_netG(pred_blur, split_HR_blur)
-
+                pred_k, pred_blur = self.model.module.netG(split_HR, HR_blur) # k [B, ksize**2, 1, 1]
+                # loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.criterion_pix_netG(pred_blur, split_HR_blur)
+                mean1, var1 = [],[]
+                mean2, var2 = [],[]
+                for i in range(split_k.shape[0]):
+                    mean1.append(torch.mean(pred_k[i]))
+                    var1.append(torch.var(pred_k[i]))
+                    mean2.append(torch.mean(split_k[i]))
+                    var2.append(torch.var(split_k[i]))
+                logvar1 = torch.from_numpy(np.log(var1).astype(np.float32)).cuda()
+                logvar2 = torch.from_numpy(np.log(var2).astype(np.float32)).cuda()
+                mean1 = torch.Tensor(mean1).cuda()
+                mean2 = torch.Tensor(mean2).cuda()
+                # loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.criterion_pix_netG(pred_blur, split_HR_blur) + self.normal_kl(mean1, logvar1, mean2, logvar2)
+                loss_sbatch = self.criterion_pix_k(pred_k, torch.reshape(split_k, (split_k.shape[0], -1, 1,1))) + self.normal_kl(mean1, logvar1, mean2, logvar2)
                 loss_sbatch /= self.split_batch
                 loss_sbatch.backward()
 
@@ -504,6 +545,7 @@ class SRSolver(BaseSolver):
     def get_current_learning_rate(self, module):
         if module == 1:
             return self.optimizer1.param_groups[0]['lr']
+        self.optimizer2.param_groups[0]['lr'] = 1e-4/2
         return self.optimizer2.param_groups[0]['lr']
 
     def update_learning_rate_SR(self, epoch):

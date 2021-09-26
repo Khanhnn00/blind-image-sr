@@ -131,7 +131,7 @@ def tensor2img(tensor, out_type=np.uint8, min_max=(0, 255)):
     """
 
     # clamp
-    print(tensor.min(), tensor.max())
+    # print(tensor.min(), tensor.max())
     tensor = tensor.squeeze().float().cpu().clamp_(*min_max)
 
     # to range [0,1]

@@ -16,7 +16,7 @@
             "dataroot_HR": "../dataset/result/HR_x4_npy",
             "data_type": "npy",
             "n_workers": 0,
-            "batch_size": 32,
+            "batch_size": 16,
             "LR_size": 48,
             "use_flip": true,
             "use_rot": true,
@@ -88,7 +88,7 @@
         "weight_decay": 0,
         "lr_scheme": "MultiStepLR",
         "lr_steps": [200, 400, 600, 800],
-        "lr_steps_netG": [200,400, 600, 800],
+        "lr_steps_netG": [70,150, 210, 800],
         "lr_gamma": 0.5,
         "loss_type": "l1",
         "manual_seed": 0,
@@ -101,6 +101,6 @@
         "pretrain_netG": "resume",
         "netG_only": true,
         "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
-        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_last_ckp.pth"
+        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_epoch_200_ckp.pth"
     }
 }

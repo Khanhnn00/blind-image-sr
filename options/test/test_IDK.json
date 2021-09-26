@@ -66,7 +66,8 @@
             "use_sharp": false,
             "n_blocks": 4,
             "padding_type": "reflect",
-            "use_dropout": false
+            "use_dropout": false,
+            "kernel_size": 19
         },
         "DIP":{
             "input_nc": 8,
@@ -101,7 +102,7 @@
         "pretrain_SR": null,
         "pretrain_netG": null,
         "netG_only": false,
-        "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_last_ckp.pth",
-        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_best_ckp.pth"
+        "pretrainedSR_path": "./experiments/IDK_in3f64_x4/epochs/SR_best_ckp.pth",
+        "pretrainednetG_path": "./experiments/IDK_in3f64_x4/epochs/netG_epoch_200_ckp.pth"
     }
 }
